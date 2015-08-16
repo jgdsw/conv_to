@@ -1,6 +1,9 @@
-conv_to
+conv_to:
+
+Script for simplifying ffmpeg tasks
 
 Usage:
+
     $ conv_to [-i <0|1>] [-d <0|1>] [-e <0|1>] [-f <#99>] [-j <output_file>]
               [-c <mp4|avi|mp3|m4a>] [-r <VCD|std|DVD|HD|FHD>] <file1 file2 ... fileN>
 
