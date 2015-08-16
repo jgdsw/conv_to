@@ -1,0 +1,2 @@
+find . -name "*.m4a" -type f -print0 | xargs -0 conv_to -d 1 -c mp3
+find . -name "*.M4A" -type f -print0 | xargs -0 conv_to -d 1 -c mp3
