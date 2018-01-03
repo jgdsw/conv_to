@@ -1,63 +1,67 @@
 conv_to:
 
-Script for simplifying ffmpeg tasks
+usage: conv_to [-h] [-v] [-d] [-e] [-i] [-na] [-ns] [-fl] [-f #FPS]
+               [-j <JOINED_FILE>] [-c <mp4|avi|mkv|m4a|mp3|ogg>]
+               [-r <input|std|VCD|DVD|HD|FHD|UHD|DCI>]
+               <FILE> [<FILE> ...]
 
-Usage:
+v2.6: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input
+resolution)
 
-    $ conv_to [-i <0|1>] [-d <0|1>] [-e <0|1>] [-f <#99>] [-j <output_file>]
-              [-c <mp4|avi|mp3|m4a>] [-r <VCD|std|DVD|HD|FHD>] <file1 file2 ... fileN>
+positional arguments:
+  <FILE>                file/s to process
 
-    Version: 1.13
-
-    Default parameters:
-        -i 0 -d 0 -e 0 -c mp4 
-        Convert to MP4 (h264/aac-ac3) / No scaling, no extra info, no forced encoding, no deletion
-
-    -i <0|1> :
-        * Info log level:
-          0: Normal info log
-          1: Extra info log
-
-    -d <0|1> :
-        * Delete original input files:
-          0: No
-          1: Yes
-
-    -e <0|1> :
-        * Force re-encoding:
-          0: No
-          1: Yes
-
-    -f <#99> :
-        * Force the output FPS to the given value.
-
-    -j <output_file> :
-        * Join all multimedia files and generate the specified output file.
-        * Same codec format expected in all files
-
-    -c <mp4|avi|mp3|m4a> :
-        * Select output container file format.
-        * Not used in join operations.
-
-    -r <VCD|std|DVD|HD|FHD> :
-        * Resolutions (not used in join operations):
-          std: Max. width limited to 542px
-          VCD: Max. width limited to 352px
-          DVD: Max. width limited to 720px
-          HD:  Max. width limited to 1280px
-          FHD: Max. width limited to 1920px (BlueRay)
+optional arguments:
+  -h, --help            show this help message and exit
+  -v, --verbose         show extra log information
+  -d, --delete          delete/remove original input file/s
+  -e, --force           force re-encoding of input files
+  -i, --info            show file information
+  -na, --no_audio       do not include audio
+  -ns, --no_subs        do not include subtitles
+  -fl, --flip           flip video (rotate vodeo 180º)
+  -f #FPS, --fps #FPS   output FPS value
+  -j <JOINED_FILE>, --join_to <JOINED_FILE>
+                        Joined output file (same codec expected in input
+                        files)
+  -c <mp4|avi|mkv|m4a|mp3|ogg>, --container <mp4|avi|mkv|m4a|mp3|ogg>
+                        output container/codec file format (not used in join
+                        operations
+  -r <input|std|VCD|DVD|HD|FHD|UHD|DCI>, --resol <input|std|VCD|DVD|HD|FHD|UHD|DCI>
+                        standard resolution to use (not used in join
+                        operations). input=same as input, std=max width 542px,
+                        VCD=max width 352px, DVD=max width 720px, HD=max width
+                        1280px, FHD=max width 1920px, UHD=max width 3840px,
+                        DCI=max width 4096px
 
     Examples:
-        * Converting to MP4 or AVI (video):
+
+        * Converting video:
             $ conv_to -c avi video.flv
-            $ conv_to video.mkv
-            $ conv_to -i 1 -r VCD v1.mpg v2.mpg
+            $ conv_to -d video1.mkv video2.avi video3.mpg
+            $ cont_to -ns -na video.avi
+            $ conv_to -v -r VCD -c mkv v1.mpg v2.mpg
+
+        * Converting and setting FPS:
+            $ conv_to --fps 25 video.avi
+
+        * Converting and rotating 180º:
+            $ conv_to --flip video.mkv
+
         * Extracting audio from video files:
             $ conv_to -c mp3 Video.m4v
             $ conv_to -c m4a Video.avi
-        * Converting to MP3 or M4A (audio):
+            $ cont_to -c ogg Video.mp4
+
+        * Getting file information:
+            $ conv_to -v -i file.mp3
+            $ conv_to -i video1.mpg video2.avi video3.mkv
+
+        * Converting audio:
             $ conv_to -c mp3 audio1.ogg audio2.m4a
             $ conv_to -c m4a audio3.ogg audio4.mp3
+            $ conv_to -d -c ogg audio1.mp3 audio2.m4a
+
         * Joining different files together:
             $ conv_to -j out.avi in1.avi in2.avi in3.avi
             $ conv_to -j out.mp3 in1.mp3 in2.mp3
