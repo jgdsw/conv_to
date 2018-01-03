@@ -1,4 +1,4 @@
-conv_to:
+conv_to.py:
 
 usage: conv_to [-h] [-v] [-d] [-e] [-i] [-na] [-ns] [-fl] [-f #FPS]
                [-j <JOINED_FILE>] [-c <mp4|avi|mkv|m4a|mp3|ogg>]
@@ -37,31 +37,32 @@ optional arguments:
     Examples:
 
         * Converting video:
-            $ conv_to -c avi video.flv
-            $ conv_to -d video1.mkv video2.avi video3.mpg
-            $ cont_to -ns -na video.avi
-            $ conv_to -v -r VCD -c mkv v1.mpg v2.mpg
+            $ conv_to.py -c avi video.flv
+            $ conv_to.py -d video1.mkv video2.avi video3.mpg
+            $ cont_to.py -ns -na video.avi
+            $ conv_to.py -v -r VCD -c mkv v1.mpg v2.mpg
 
         * Converting and setting FPS:
-            $ conv_to --fps 25 video.avi
+            $ conv_to.py --fps 25 video.avi
 
         * Converting and rotating 180º:
-            $ conv_to --flip video.mkv
+            $ conv_to.py --flip video.mkv
 
         * Extracting audio from video files:
-            $ conv_to -c mp3 Video.m4v
-            $ conv_to -c m4a Video.avi
-            $ cont_to -c ogg Video.mp4
+            $ conv_to.py -c mp3 Video.m4v
+            $ conv_to.py -c m4a Video.avi
+            $ cont_to.py -c ogg Video.mp4
 
         * Getting file information:
-            $ conv_to -v -i file.mp3
-            $ conv_to -i video1.mpg video2.avi video3.mkv
+            $ conv_to.py -v -i file.mp3
+            $ conv_to.py -i video1.mpg video2.avi video3.mkv
 
         * Converting audio:
-            $ conv_to -c mp3 audio1.ogg audio2.m4a
-            $ conv_to -c m4a audio3.ogg audio4.mp3
-            $ conv_to -d -c ogg audio1.mp3 audio2.m4a
+            $ conv_to.py -c mp3 audio1.ogg audio2.m4a
+            $ conv_to.py -c m4a audio3.ogg audio4.mp3
+            $ conv_to.py -d -c ogg audio1.mp3 audio2.m4a
 
         * Joining different files together:
-            $ conv_to -j out.avi in1.avi in2.avi in3.avi
-            $ conv_to -j out.mp3 in1.mp3 in2.mp3
+            $ conv_to.py -j out.avi in1.avi in2.avi in3.avi
+            $ conv_to.py -j out.mp3 in1.mp3 in2.mp3
+
