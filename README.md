@@ -34,6 +34,9 @@ conv_to.py:
                             1280px, FHD=max width 1920px, UHD=max width 3840px,
                             DCI=max width 4096px
 
+    * Note: When converting subtitles to an AVI container, the original subtitles streams
+      (text based) will be extracted to SRT files aside from the resulting AVI file
+
 Examples:
 
     * Converting video:
