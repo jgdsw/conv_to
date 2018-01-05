@@ -152,6 +152,12 @@ def get_video_streams (file, options, args, info=False):
                                 scale_v = video_resolution[args.resol][1] 
                                 width = video_resolution[args.resol][0]
                                 resize = True          
+                        
+                        # libx264 restriction about odd sizes
+                        if not resize and not header:
+                            if (width % 2 == 1) or (height % 2 == 1):
+                                scale_v = 'scale=trunc(iw/2)*2:trunc(ih/2)*2' 
+                                resize = True
 
                         # Rotate 180
                         flip = False
@@ -513,7 +519,7 @@ ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_stream
 exit_code = 0
 
 # Get command line
-parser = argparse.ArgumentParser(prog='conv_to', description='v2.6: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+parser = argparse.ArgumentParser(prog='conv_to', description='v2.7: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
 parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
 parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
 parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
