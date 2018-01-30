@@ -5,7 +5,7 @@ conv_to.py:
                    [-r <input|std|VCD|DVD|HD|FHD|UHD|DCI>]
                    <FILE> [<FILE> ...]
 
-    v2.7: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input
+    v2.8: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input
     resolution)
 
     positional arguments:
