@@ -426,8 +426,8 @@ audio_container = {
 
 # FFMPEG options for video containers general options
 video_container = {
-'mp4': ('h264',  '-map_metadata 0 -f mp4 -movflags faststart -pix_fmt yuv420p'),
-'mkv': ('h264',  '-map_metadata 0 -f matroska -pix_fmt yuv420p'),
+'mp4': ('hevc',  '-map_metadata 0 -f mp4 -movflags faststart -pix_fmt yuv420p'),
+'mkv': ('hevc',  '-map_metadata 0 -f matroska -pix_fmt yuv420p'),
 'avi': ('mpeg4', '-map_metadata 0 -f avi -vtag xvid -pix_fmt yuv420p')
 }
 
@@ -446,29 +446,29 @@ video_resolution = {
 # FFMPEG options for video streams in video files
 stream_video_quality = {
 'input-avi': 'mpeg4 -q:v 0 -g 300 -bf 2 -qscale:v 0',
-'input-mp4': 'h264 -crf 18 -preset medium',
-'input-mkv': 'h264 -crf 18 -preset medium',
+'input-mp4': 'libx265 -preset ultrafast -x265-params crf=23',
+'input-mkv': 'libx265 -preset ultrafast -x265-params crf=23',
 'std-avi':   'mpeg4 -q:v 0 -b:v 900k -g 300 -bf 2',   #900k
-'std-mp4':   'h264 -crf 19 -preset medium',
-'std-mkv':   'h264 -crf 19 -preset medium',
+'std-mp4':   'libx265 -preset ultrafast -x265-params crf=24',
+'std-mkv':   'libx265 -preset ultrafast -x265-params crf=24',
 'VCD-avi':   'mpeg4 -q:v 0 -b:v 400k -g 300 -bf 2',   #400k
-'VCD-mp4':   'h264 -crf 20 -preset medium',
-'VCD-mkv':   'h264 -crf 20 -preset medium',
+'VCD-mp4':   'libx265 -preset ultrafast -x265-params crf=25',
+'VCD-mkv':   'libx265 -preset ultrafast -x265-params crf=25',
 'DVD-avi':   'mpeg4 -q:v 0 -b:v 1800k -g 300 -bf 2',  #1800k
-'DVD-mp4':   'h264 -crf 18 -preset medium',
-'DVD-mkv':   'h264 -crf 18 -preset medium',
+'DVD-mp4':   'libx265 -preset ultrafast -x265-params crf=23',
+'DVD-mkv':   'libx265 -preset ultrafast -x265-params crf=23',
 'HD-avi':    'mpeg4 -q:v 0 -b:v 4000k -g 300 -bf 2',  #4000k
-'HD-mp4':    'h264 -crf 17 -preset medium',
-'HD-mkv':    'h264 -crf 17 -preset medium',
+'HD-mp4':    'libx265 -preset ultrafast -x265-params crf=22',
+'HD-mkv':    'libx265 -preset ultrafast -x265-params crf=22',
 'FHD-avi':   'mpeg4 -q:v 0 -b:v 8500k -g 300 -bf 2',  #8500k
-'FHD-mp4':   'h264 -crf 16 -preset medium',
-'FHD-mkv':   'h264 -crf 16 -preset medium',
+'FHD-mp4':   'libx265 -preset ultrafast -x265-params crf=22:qcomp=0.8:aq-mode=1:aq_strength=1.0:qg-size=16:psy-rd=0.7:psy-rdoq=5.0:rdoq-level=1:merange=44',
+'FHD-mkv':   'libx265 -preset ultrafast -x265-params crf=22:qcomp=0.8:aq-mode=1:aq_strength=1.0:qg-size=16:psy-rd=0.7:psy-rdoq=5.0:rdoq-level=1:merange=44',
 'UHD-avi':   'mpeg4 -q:v 0 -b:v 10000k -g 300 -bf 2', #10000k
-'UHD-mp4':   'h264 -crf 15 -preset medium',
-'UHD-mkv':   'h264 -crf 15 -preset medium',
+'UHD-mp4':   'libx265 -preset ultrafast -x265-params crf=20:qcomp=0.8:aq-mode=1:aq_strength=1.0:qg-size=16:psy-rd=0.7:psy-rdoq=5.0:rdoq-level=1:merange=44',
+'UHD-mkv':   'libx265 -preset ultrafast -x265-params crf=20:qcomp=0.8:aq-mode=1:aq_strength=1.0:qg-size=16:psy-rd=0.7:psy-rdoq=5.0:rdoq-level=1:merange=44',
 'DCI-avi':   'mpeg4 -q:v 0 -b:v 12000k -g 300 -bf 2', #12000k
-'DCI-mp4':   'h264 -crf 14 -preset medium',
-'DCI-mkv':   'h264 -crf 14 -preset medium'
+'DCI-mp4':   'libx265 -preset ultrafast -x265-params crf=20:qcomp=0.8:aq-mode=1:aq_strength=1.0:qg-size=16:psy-rd=0.7:psy-rdoq=5.0:rdoq-level=1:merange=44',
+'DCI-mkv':   'libx265 -preset ultrafast -x265-params crf=20:qcomp=0.8:aq-mode=1:aq_strength=1.0:qg-size=16:psy-rd=0.7:psy-rdoq=5.0:rdoq-level=1:merange=44'
 }
 
 # FFMPEG options for audio streams quality in video files
