@@ -118,6 +118,9 @@ def vidtag (files):
             file_base = file_base.replace('  ', ' ')
             file_base = file_base.strip()
             file_base = file_base.title()
+            file_base = file_base.replace(' Iii', ' III')
+            file_base = file_base.replace(' Ii', ' II')
+            file_base = file_base.replace(' Iv', ' IV')
 
             # Output filename
             file_out = '{} {}{}'.format(file_base, tag, file_ext)
