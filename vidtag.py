@@ -104,10 +104,19 @@ def vidtag (args):
             f_path = Path(file_notags)
             file_wext = f_path.with_suffix('')
             file_ext = f_path.suffix
-            file_out = '{}{}{}'.format(file_wext, tag, file_ext)
+
+            # clean
+            file_base='{}'.format(file_wext)
+            file_base=file_base.replace('..', '')
+            file_base=file_base.replace('_', ' ')
+            file_base=file_base.replace('.', ' ')
+            file_base=file_base.strip()
+            file_base=file_base.title()
+
+            file_out = '{} {}{}'.format(file_base, tag, file_ext)
 
             # Final names
-            print('>>> File "{}":\n    TAG: {}\n    NAM: "{}"\n    OUT: "{}"'.format(file, tag, file_wext, file_out))
+            print('>>> File "{}":\n    TAG: {}\n    NAM: "{}"\n    OUT: "{}"'.format(file, tag, file_base, file_out))
 
             # Final rename
             if file == file_out:
