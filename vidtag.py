@@ -90,37 +90,43 @@ def get_file_tag (file):
 
 #-------------------------------------------------------------------------------
 
-def vidtag (args):
+def vidtag (files):
+
     # for each file
-    for file in args.files:
+    for file in files:
+        
         sep()
+
+        # Get file tag
         st, tag = get_file_tag(file)
 
         if (st == 0):
 
-            # Output filename
-            file_notags = re.sub(r'\[[^()]*\]', '', file)
-            file_notags = re.sub(r'\.ffmpeg', '', file_notags)
-            f_path = Path(file_notags)
+            # Input filename
+            file_abs = '{}'.format(os.path.abspath(file))
+            f_path = Path(file_abs)
             file_wext = f_path.with_suffix('')
             file_ext = f_path.suffix
 
-            # clean
-            file_base='{}'.format(file_wext)
-            file_base=file_base.replace('..', ' ')
-            file_base=file_base.replace('_', ' ')
-            file_base=file_base.replace('.', ' ')
-            file_base=file_base.replace('  ', ' ')
-            file_base=file_base.strip()
-            file_base=file_base.title()
+            # Clean Base filename
+            file_base = '{}'.format(file_wext)
+            file_base = re.sub(r'\[[^()]*\]', '', file_base)
+            file_base = re.sub(r'\.ffmpeg', '', file_base)
+            file_base = file_base.replace('..', ' ')
+            file_base = file_base.replace('_', ' ')
+            file_base = file_base.replace('.', ' ')
+            file_base = file_base.replace('  ', ' ')
+            file_base = file_base.strip()
+            file_base = file_base.title()
 
+            # Output filename
             file_out = '{} {}{}'.format(file_base, tag, file_ext)
 
-            # Final names
-            print('>>> File "{}":\n    TAG: {}\n    NAM: "{}"\n    OUT: "{}"'.format(file, tag, file_base, file_out))
+            # Show results
+            print('>>> File "{}":\n    TAG: {}\n    NAM: "{}"\n    OUT: "{}"'.format(file_abs, tag, file_base, file_out))
 
             # Final rename
-            if file == file_out:
+            if file_abs == file_out:
                 print ('>>> No file renaming needed')
             else:
                 try:
@@ -148,5 +154,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Call action function
-    vidtag(args)
+    vidtag(args.files)
 
