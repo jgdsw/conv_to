@@ -124,6 +124,11 @@ def vidtag (files):
             file_base = file_base.replace(' Iii', ' III')
             file_base = file_base.replace(' Ii', ' II')
             file_base = file_base.replace(' Iv', ' IV')
+            file_base = file_base.replace('Hd', 'HD')
+            file_base = file_base.replace('Dvd', 'DVD')
+            file_base = file_base.replace('Fhd', 'FHD')
+            file_base = file_base.replace('Uhd', 'UHD')
+            file_base = file_base.replace('Vcd', 'VCD')
 
             # Output filename
             file_out = '{} {}{}'.format(file_base, tag, file_ext)
