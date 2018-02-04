@@ -107,9 +107,10 @@ def vidtag (args):
 
             # clean
             file_base='{}'.format(file_wext)
-            file_base=file_base.replace('..', '')
+            file_base=file_base.replace('..', ' ')
             file_base=file_base.replace('_', ' ')
             file_base=file_base.replace('.', ' ')
+            file_base=file_base.replace('  ', ' ')
             file_base=file_base.strip()
             file_base=file_base.title()
 
