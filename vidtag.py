@@ -103,8 +103,11 @@ def vidtag (files):
         if (st == 0):
 
             # Input filename
-            file_abs = '{}'.format(os.path.abspath(file))
-            f_path = Path(file_abs)
+            file_in = os.path.abspath(file)
+            dirname = os.path.dirname(file_in)
+            file_bn = os.path.basename(file_in)
+
+            f_path = Path(file_bn)
             file_wext = f_path.with_suffix('')
             file_ext = f_path.suffix
 
@@ -124,16 +127,18 @@ def vidtag (files):
 
             # Output filename
             file_out = '{} {}{}'.format(file_base, tag, file_ext)
+            file_out = os.path.join(dirname, file_out)
 
             # Show results
-            print('>>> File "{}":\n    TAG: {}\n    NAM: "{}"\n    OUT: "{}"'.format(file_abs, tag, file_base, file_out))
+            print('>>> File "{}"\n    TAG: {}\n    NAM: "{}"\n    OUT: "{}"'.format(file_in, tag, file_base, file_out))
 
             # Final rename
-            if file_abs == file_out:
+            if file_in == file_out:
                 print ('>>> No file renaming needed')
             else:
                 try:
-                    os.rename(file, file_out)
+                	os.rename(file_in, file_out)
+                	print('>>> Renamed')
                 except OSError as err:
                     print('!!! ERROR renaming file'.format(file))
 
