@@ -9,6 +9,7 @@ import subprocess
 import locale
 import tempfile
 from pathlib import Path
+from titlecase import titlecase
 
 #-------------------------------------------------------------------------------
 
@@ -90,12 +91,13 @@ def get_file_tag (file):
 
 #-------------------------------------------------------------------------------
 
-def vidtag (files):
+def set_file_tag (files, main=False):
 
     # for each file
     for file in files:
         
-        sep()
+        if main:
+        	sep()
 
         # Get file tag
         st, tag = get_file_tag(file)
@@ -120,7 +122,9 @@ def vidtag (files):
             file_base = file_base.replace('.', ' ')
             file_base = file_base.replace('  ', ' ')
             file_base = file_base.strip()
-            file_base = file_base.title()
+            #file_base = file_base.title()
+            # More rebust capitalization
+            file_base = titlecase(file_base)
             file_base = file_base.replace(' Iii', ' III')
             file_base = file_base.replace(' Ii', ' II')
             file_base = file_base.replace(' Iv', ' IV')
@@ -135,7 +139,7 @@ def vidtag (files):
             file_out = os.path.join(dirname, file_out)
 
             # Show results
-            print('>>> File "{}"\n    TAG: {}\n    NAM: "{}"\n    OUT: "{}"'.format(file_in, tag, file_base, file_out))
+            print('>>> Tag File: "{}"\n    TAG: {}\n    NAM: "{}"'.format(file_in, tag, file_base))
 
             # Final rename
             if file_in == file_out:
@@ -143,19 +147,21 @@ def vidtag (files):
             else:
                 try:
                 	os.rename(file_in, file_out)
-                	print('>>> Renamed')
+                	print('>>> Renamed to: "{}"'.format(file_out))
                 except OSError as err:
-                    print('!!! ERROR renaming file'.format(file))
+                    print('!!! ERROR renaming to: "{}"'.format(file_out))
 
         else:
-            print('!!! File "{}":\n    ERROR processing file'.format(file))
-    sep()    
+            print('!!! ERROR Tagging File: "{}"'.format(file))
+
+    if main:
+    	sep()    
 
 #-------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Get command line
-    parser = argparse.ArgumentParser(prog='conv_to', description='v1.0: Insert descriptive tags for video file names')
+    parser = argparse.ArgumentParser(prog='conv_to', description='v1.1: Insert descriptive tags for video file names')
     parser.add_argument('files', metavar='<FILE>', nargs='+', help='file/s to process')
 
     # Always show Help with no params
@@ -167,5 +173,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Call action function
-    vidtag(args.files)
-
+    set_file_tag(args.files, main=True)
