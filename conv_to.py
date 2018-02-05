@@ -52,7 +52,11 @@ def exec_command (cmd, get_output=True, info=True):
     except:
         print('')
         print('')
-        sys.exit ('!!! ERROR: External command failed or aborted')
+        print('!!! External command failed or aborted')
+        print('')
+
+        out = []
+        status = 9999
 
     if info:
         print('')
@@ -610,6 +614,9 @@ if len(args.join_to)==0:
                 else:
                     print('!!! ERROR: Processing File [{}] (exit code {})'.format(file, exit_code))
                     delete_file(file_out)
+                    if exit_code == 9999:
+                        print('')
+                        sys.exit ('*** Stopped ***')
 
         else:
             print('!!! ERROR: File [{}] not exists or is not readable'.format(file))
