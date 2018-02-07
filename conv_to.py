@@ -500,7 +500,7 @@ False: '-v error'
 }
 
 # Problematic codecs to ignore
-ignored_codecs = ['mjpeg', 'hdmv_pgs_subtitle', 'xsub']
+ignored_codecs = ['mjpeg', 'hdmv_pgs_subtitle', 'xsub', 'dvd_subtitle']
 
 # FFMPEG options
 FPS = '-r {}'
@@ -525,7 +525,7 @@ ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_stream
 exit_code = 0
 
 # Get command line
-parser = argparse.ArgumentParser(prog='conv_to', description='v2.9: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+parser = argparse.ArgumentParser(prog='conv_to', description='v2.10: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
 parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
 parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
 parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
