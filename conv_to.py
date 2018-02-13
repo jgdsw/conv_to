@@ -525,14 +525,14 @@ ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_stream
 exit_code = 0
 
 # Get command line
-parser = argparse.ArgumentParser(prog='conv_to', description='v2.10: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+parser = argparse.ArgumentParser(prog='conv_to', description='v2.11: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
 parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
 parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
 parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
 parser.add_argument('-i', '--info', help='show file information', action='store_true')
 parser.add_argument('-na', '--no_audio', help='do not include audio', action='store_true')
 parser.add_argument('-ns', '--no_subs', help='do not include subtitles', action='store_true')
-parser.add_argument('-fl', '--flip', help='flip video (rotate vodeo 180º)', action='store_true')
+parser.add_argument('-fl', '--flip', help='flip video (rotate video 180º)', action='store_true')
 parser.add_argument('-t', '--tag', help='tag video files width vidtag', action='store_true')
 parser.add_argument('-f', '--fps', metavar='#FPS', help='output FPS value', default=0.0, type=float)
 parser.add_argument('-j', '--join_to', metavar='<JOINED_FILE>', help='Joined output file (same codec expected in input files)', default='')
