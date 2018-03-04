@@ -525,7 +525,7 @@ ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_stream
 exit_code = 0
 
 # Get command line
-parser = argparse.ArgumentParser(prog='conv_to', description='v2.11: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+parser = argparse.ArgumentParser(prog='conv_to', description='v2.12: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
 parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
 parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
 parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
@@ -571,9 +571,10 @@ if len(args.join_to)==0:
 
             # Output filename
             f_path = Path(file)
+            file_in = str(f_path)
             file_wext = f_path.with_suffix('')
             file_out = '{}.{}'.format(file_wext, args.container)
-            if file_out == file:
+            if file_out == file_in:
                 file_out = '{}.ffmpeg.{}'.format(file_wext, args.container)
 
             if args.info:
@@ -586,7 +587,7 @@ if len(args.join_to)==0:
                     delete_file(file_out)
 
             else:
-                print('>>> Converting file [{}] --> [{}]...'.format(file,file_out))
+                print('>>> Converting file [{}]\n                to: [{}]...'.format(file_in,file_out))
 
                 # The file exists
                 if video[args.container]:
@@ -597,7 +598,7 @@ if len(args.join_to)==0:
                     convert_audio_file(file, file_out, args)
     
                 if exit_code == 0:
-                    print('>>> Converted file [{}] --> [{}]'.format(file,file_out))
+                    print('>>> Converted file [{}]\n               to: [{}]'.format(file_in,file_out))
                     if args.delete:
                         if delete_file(file):
                             print('>>> Deleted input file [{}]'.format(file))
