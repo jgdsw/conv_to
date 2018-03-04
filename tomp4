@@ -1,0 +1,4 @@
+find . -name '*.flv' -type f -print0 | xargs -0 conv_to.py
+find . -name '*.mpg' -type f -print0 | xargs -0 conv_to.py
+find . -name '*.avi' -type f -print0 | xargs -0 conv_to.py
+find . -name '*.mkv' -type f -print0 | xargs -0 conv_to.py
