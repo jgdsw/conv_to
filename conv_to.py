@@ -367,9 +367,13 @@ def convert_video_file (file, file_out, args):
     if args.fps != 0.0:
         options.append(FPS.format(args.fps))
 
+    st_v = st_a = st_s = 255
+
     st_v = get_video_streams(file, options, args)
-    st_a = get_audio_streams(file, options, args)
-    st_s = get_subs_streams(file, options, args)
+    if st_v == 0:
+        st_a = get_audio_streams(file, options, args)
+    if st_a == 0:
+        st_s = get_subs_streams(file, options, args)
 
     if st_v == 0 and st_a == 0 and st_s == 0:
         # Correct stream data
@@ -394,9 +398,13 @@ def get_file_info (file, args):
 
     options = []
 
+    st_v = st_a = st_s = 255
+
     st_v = get_video_streams(file, options, args, info=True)
-    st_a = get_audio_streams(file, options, args, info=True)
-    st_s = get_subs_streams(file, options, args, info=True)
+    if st_v == 0:
+        st_a = get_audio_streams(file, options, args, info=True)
+    if st_a == 0:    
+        st_s = get_subs_streams(file, options, args, info=True)
 
     if st_v != 0 or st_a != 0 or st_s != 0:
         # Error obtaining streams data
@@ -525,7 +533,7 @@ ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_stream
 exit_code = 0
 
 # Get command line
-parser = argparse.ArgumentParser(prog='conv_to', description='v2.13: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+parser = argparse.ArgumentParser(prog='conv_to', description='v2.14: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
 parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
 parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
 parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
