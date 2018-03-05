@@ -359,6 +359,17 @@ def get_subs_streams (file, options, args, info=False):
 
 #-------------------------------------------------------------------------------
 
+def show_file_size (file):
+    f = Path(file)
+    try:
+        s = os.path.getsize(f)
+        size = ((s/1024)/1024)
+    except OSError:
+        size = 0
+    print('# Size: {:.2f} MB'.format(size))
+
+#-------------------------------------------------------------------------------
+
 def convert_video_file (file, file_out, args):
     global exit_code, info, video_container, video_resolution, FPS
 
@@ -369,6 +380,7 @@ def convert_video_file (file, file_out, args):
 
     st_v = st_a = st_s = 255
 
+    show_file_size(file)
     st_v = get_video_streams(file, options, args)
     if st_v == 0:
         st_a = get_audio_streams(file, options, args)
@@ -400,6 +412,7 @@ def get_file_info (file, args):
 
     st_v = st_a = st_s = 255
 
+    show_file_size(file)
     st_v = get_video_streams(file, options, args, info=True)
     st_a = get_audio_streams(file, options, args, info=True)   
     st_s = get_subs_streams(file, options, args, info=True)
@@ -531,7 +544,7 @@ ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_stream
 exit_code = 0
 
 # Get command line
-parser = argparse.ArgumentParser(prog='conv_to', description='v2.16: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+parser = argparse.ArgumentParser(prog='conv_to', description='v2.17: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
 parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
 parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
 parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
