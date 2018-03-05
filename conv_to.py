@@ -130,11 +130,11 @@ def get_video_streams (file, options, args, info=False):
 
                 lv = lv[1:6]
 
-                index = ToInt(lv[0])
-                codec = lv[1]
-                width = ToInt(lv[2])
-                height = ToInt(lv[3])
-                bitrate = lv[4] 
+                index = ToInt(lv[0].strip())
+                codec = lv[1].strip()
+                width = ToInt(lv[2].strip())
+                height = ToInt(lv[3].strip())
+                bitrate = lv[4].strip()
 
                 if codec not in ignored_codecs:
 
@@ -239,9 +239,9 @@ def get_audio_streams (file, options, args, info=False):
                     except:
                         la.append('und')
 
-                    index = ToInt(la[0])
-                    codec = la[1]
-                    title = la[2]
+                    index = ToInt(la[0].strip())
+                    codec = la[1].strip()
+                    title = la[2].strip()
 
                     if codec not in ignored_codecs:
 
@@ -320,9 +320,9 @@ def get_subs_streams (file, options, args, info=False):
                     except:
                         ls.append('und')
 
-                    index = ToInt(ls[0])
-                    codec = ls[1]
-                    title = ls[2]
+                    index = ToInt(ls[0].strip())
+                    codec = ls[1].strip()
+                    title = ls[2].strip()
 
                     if codec not in ignored_codecs:
 
@@ -531,7 +531,7 @@ ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_stream
 exit_code = 0
 
 # Get command line
-parser = argparse.ArgumentParser(prog='conv_to', description='v2.15: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+parser = argparse.ArgumentParser(prog='conv_to', description='v2.16: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
 parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
 parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
 parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
@@ -590,7 +590,6 @@ if len(args.join_to)==0:
 
                 if exit_code != 0:
                     print('!!! ERROR: Reading File [{}] (exit code {})'.format(file, exit_code))
-                    delete_file(file_out)
 
             else:
                 print('>>> Converting file [{}]\n                to: [{}]...'.format(file_in,file_out))
@@ -605,6 +604,12 @@ if len(args.join_to)==0:
     
                 if exit_code == 0:
                     print('>>> Converted file [{}]\n               to: [{}]'.format(file_in,file_out))
+
+                    # Final file streams
+                    get_file_info(file_out, args)
+                    if exit_code != 0:
+                        print('!!! ERROR: Reading File [{}] (exit code {})'.format(file_out, exit_code))
+
                     if args.delete:
                         if delete_file(file):
                             print('>>> Deleted input file [{}]'.format(file))
