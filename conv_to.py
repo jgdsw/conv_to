@@ -521,7 +521,7 @@ OS_SRT_extraction = 'ffmpeg -stats -hide_banner -y -v error -i "{}" -map 0:{} "{
 
 # FFMPEG commands
 ffmpeg_comm = 'ffmpeg -nostdin -stats -hide_banner -y {} -i "{}" {} -max_muxing_queue_size 1024 "{}"' 
-ffmpeg_join = 'ffmpeg -nostdin -safe 0 -stats -hide_banner -y {} -f concat -i "{}" -c copy  -max_muxing_queue_size 1024 "{}"'
+ffmpeg_join = 'ffmpeg -nostdin -safe 0 -stats -hide_banner -y {} -f concat -i "{}" -c copy -max_muxing_queue_size 1024 "{}"'
 
 ffprobe_video = 'ffprobe -v error -print_format csv -show_streams -select_streams v -show_entries stream=index,codec_name,width,height,bit_rate -i "{}"'
 ffprobe_audio = 'ffprobe -v error -print_format csv -show_streams -select_streams a -show_entries stream=index,codec_name:stream_tags=language -i "{}"'
