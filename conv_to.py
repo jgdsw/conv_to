@@ -290,7 +290,7 @@ def extract_subs_to_SRT (args, file, index, title):
 #------------------------------------------------------------------------------
 
 def get_subs_streams (file, options, args, info=False):
-    global subtitles, ffprobe_subs, O_copy, OS_stream
+    global subtitles, ffprobe_subs, O_copy, OS_stream, not_OS_stream
 
     if args.no_subs and not info:
         # Do not copy audio streams
@@ -308,6 +308,8 @@ def get_subs_streams (file, options, args, info=False):
             subs=False
 
             for line in out:
+
+                ignored=False
 
                 lss = line.split(',')
 
@@ -347,13 +349,19 @@ def get_subs_streams (file, options, args, info=False):
                                 extract_subs_to_SRT(args, file, index, title)
                     else:
                         print('# Subtitle[{}]: {} ({}) --> Ignored CODEC (only text subtitles supported)'.format(index, codec, title))
+
+                        # Process Stream
+                        stream = not_OS_stream.format(index)
+                        options.append(stream)
+                        ignored=True
  
                 if subs:
                     # Codec for subtitles streams (MP4)
                     options.append(OS_codec.format(subtitles[args.container]))
                 else:
-                    # No subtitles inside XVID file
-                    options.append(subtitles['none'])
+                    if not ignored:
+                        # No subtitles inside XVID file
+                        options.append(subtitles['none'])
 
     return st
 
@@ -530,6 +538,7 @@ O_copy = 'copy'
 OV_stream = '-map 0:{} -c:v:{} {}'
 OA_stream = '-map 0:{} -c:a:{} {}'
 OS_stream = '-map 0:{}'
+not_OS_stream = '-map -0:{}'
 OS_codec = '-c:s {}'
 OS_SRT_extraction = 'ffmpeg -stats -hide_banner -y -v error -i "{}" -map 0:{} "{}"'
 
