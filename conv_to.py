@@ -407,6 +407,7 @@ def convert_video_file (file, file_out, args):
 #-------------------------------------------------------------------------------
 
 def get_file_info (file, args):
+    global exit_code
 
     options = []
 
@@ -544,7 +545,7 @@ ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_stream
 exit_code = 0
 
 # Get command line
-parser = argparse.ArgumentParser(prog='conv_to', description='v2.17: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+parser = argparse.ArgumentParser(prog='conv_to', description='v2.18: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
 parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
 parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
 parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
@@ -620,17 +621,19 @@ if len(args.join_to)==0:
 
                     # Final file streams
                     get_file_info(file_out, args)
+
                     if exit_code != 0:
                         print('!!! ERROR: Reading File [{}] (exit code {})'.format(file_out, exit_code))
 
-                    if args.delete:
+                    # Delete only if verification is sucessfull!
+                    if args.delete and exit_code == 0:
                         if delete_file(file):
                             print('>>> Deleted input file [{}]'.format(file))
                         else:
                             print('!!! ERROR: Deleting file [{}]'.format(file))
 
                     # Check if tagging applies and was requested
-                    if video[args.container] and args.tag:
+                    if video[args.container] and args.tag and exit_code == 0:
                         # Tag Video
                         file_list = []
                         file_list.append(file_out)
