@@ -140,12 +140,13 @@ def set_file_tag (files, main=False):
             file_out = os.path.join(dirname, file_out)
 
             # Show results
-            print('>>> Tag File: "{}"\n    TAG: {}\n    NAM: "{}"'.format(file_in, tag, file_base))
+            print('>>> Tag File: "{}"'.format(file_in))
 
             # Final rename
             if file_in == file_out:
                 print ('>>> No file renaming needed')
             else:
+                print('    TAG: {}\n    NAM: "{}"'.format(tag, file_base))
                 try:
                 	os.rename(file_in, file_out)
                 	print('>>> Renamed to: "{}"'.format(file_out))
