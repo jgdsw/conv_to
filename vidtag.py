@@ -122,6 +122,7 @@ def set_file_tag (files, main=False):
             file_base = file_base.replace('.', ' ')
             file_base = file_base.replace('  ', ' ')
             file_base = file_base.strip()
+            file_base = file_base.lower()
             #file_base = file_base.title()
             # More rebust capitalization
             file_base = titlecase(file_base)
@@ -161,7 +162,7 @@ def set_file_tag (files, main=False):
 
 if __name__ == "__main__":
     # Get command line
-    parser = argparse.ArgumentParser(prog='conv_to', description='v1.1: Insert descriptive tags for video file names')
+    parser = argparse.ArgumentParser(prog='conv_to', description='v1.2: Insert descriptive tags for video file names')
     parser.add_argument('files', metavar='<FILE>', nargs='+', help='file/s to process')
 
     # Always show Help with no params
