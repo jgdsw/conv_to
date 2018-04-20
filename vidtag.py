@@ -6,6 +6,7 @@ import os
 import os.path
 import argparse
 import subprocess
+import glob
 import locale
 import tempfile
 from pathlib import Path
@@ -25,6 +26,23 @@ def delete_file (file):
         except OSError as err:
             return False
     return True
+
+#-------------------------------------------------------------------------------
+
+def get_files (file_pattern='*.*', verbose=False):
+    """Obtains and return a list of files from an specific file pattern"""
+    if verbose:
+        print('get_files: file_pattern:({})'.format(file_pattern))
+
+    file_list = []
+
+    for file in glob.glob(file_pattern):
+        file_list.append(file)
+
+    if verbose:
+        print('get_files: file_list:({})'.format(file_list))
+
+    return file_list
 
 #-------------------------------------------------------------------------------
 
@@ -93,8 +111,15 @@ def get_file_tag (file):
 
 def set_file_tag (files, main=False):
 
+    # File wilcards expansion
+    # Windows support !!
+    files_expanded=[]
+    for f in files:
+        flist = get_files(f)
+        files_expanded = files_expanded + flist
+
     # for each file
-    for file in files:
+    for file in files_expanded:
         
         if main:
         	sep()
@@ -163,7 +188,7 @@ def set_file_tag (files, main=False):
 
 if __name__ == "__main__":
     # Get command line
-    parser = argparse.ArgumentParser(prog='conv_to', description='v1.2: Insert descriptive tags for video file names')
+    parser = argparse.ArgumentParser(prog='conv_to', description='v1.4: Insert descriptive tags for video file names')
     parser.add_argument('files', metavar='<FILE>', nargs='+', help='file/s to process')
 
     # Always show Help with no params
