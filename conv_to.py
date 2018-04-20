@@ -5,6 +5,7 @@ import os
 import os.path
 import argparse
 import subprocess
+import glob
 import locale
 import tempfile
 import vidtag
@@ -25,6 +26,23 @@ def delete_file (file):
         except OSError as err:
             return False
     return True
+
+#-------------------------------------------------------------------------------
+
+def get_files (file_pattern='*.*', verbose=False):
+    """Obtains and return a list of files from an specific file pattern"""
+    if verbose:
+        print('get_files: file_pattern:({})'.format(file_pattern))
+
+    file_list = []
+
+    for file in glob.glob(file_pattern):
+        file_list.append(file)
+
+    if verbose:
+        print('get_files: file_list:({})'.format(file_list))
+
+    return file_list
 
 #-------------------------------------------------------------------------------
 
@@ -554,7 +572,7 @@ ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_stream
 exit_code = 0
 
 # Get command line
-parser = argparse.ArgumentParser(prog='conv_to', description='v2.18: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+parser = argparse.ArgumentParser(prog='conv_to', description='v2.20: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
 parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
 parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
 parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
@@ -591,7 +609,14 @@ if len(args.join_to)==0:
             print('*** [Resolution={}, FPS={}, Force_encode={}]'.format(args.resol, args.fps, args.force))
         print('*** [Delete Input Files={}]'.format(args.delete))
 
-    for file in args.files:
+    # File wilcards expansion
+    # Windows support !!
+    files_expanded=[]
+    for f in args.files:
+        flist = get_files(f)
+        files_expanded = files_expanded + flist
+
+    for file in files_expanded:
 
         sep()
 
