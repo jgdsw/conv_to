@@ -39,6 +39,9 @@ def get_files (file_pattern='*.*', verbose=False):
     for file in glob.glob(file_pattern):
         file_list.append(file)
 
+    if len(file_list) == 0:
+        file_list = [file_pattern]
+
     if verbose:
         print('get_files: file_list:({})'.format(file_list))
 
