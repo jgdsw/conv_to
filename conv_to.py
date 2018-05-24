@@ -391,7 +391,13 @@ def get_subs_streams (file, options, args, info=False):
 def show_file_size (file):
     f = Path(file)
     try:
-        s = os.path.getsize(f)
+        ver2=sys.version_info[1]
+        if ver2 >= 6:
+            # python 3.6+
+            s = os.path.getsize(f)
+        else:
+            # python pre 3.6
+            s = os.path.getsize(file)
         size = ((s/1024)/1024)
     except OSError:
         size = 0
