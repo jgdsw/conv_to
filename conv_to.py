@@ -10,7 +10,7 @@ import locale
 import tempfile
 import vidtag
 from pathlib import Path
-
+import types
 
 #-------------------------------------------------------------------------------
 
@@ -580,130 +580,155 @@ ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_stream
 # Exit status
 exit_code = 0
 
-# Get command line
-parser = argparse.ArgumentParser(prog='conv_to', description='v2.20: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
-parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
-parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
-parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
-parser.add_argument('-i', '--info', help='show file information', action='store_true')
-parser.add_argument('-na', '--no_audio', help='do not include audio', action='store_true')
-parser.add_argument('-ns', '--no_subs', help='do not include subtitles', action='store_true')
-parser.add_argument('-fl', '--flip', help='flip video (rotate video 180º)', action='store_true')
-parser.add_argument('-t', '--tag', help='tag video files width vidtag', action='store_true')
-parser.add_argument('-f', '--fps', metavar='#FPS', help='output FPS value', default=0.0, type=float)
-parser.add_argument('-j', '--join_to', metavar='<JOINED_FILE>', help='Joined output file (same codec expected in input files)', default='')
-parser.add_argument('-c', '--container', metavar='<mp4|avi|mkv|m4a|mp3|ogg>', 
-                    help='output container/codec file format (not used in join operations', 
-                    choices=['mp4', 'avi', 'mkv', 'm4a', 'mp3', 'ogg'], default='mp4')
-parser.add_argument('-r', '--resol', metavar='<input|std|VCD|DVD|HD|FHD|UHD|DCI>', 
-                    help='standard resolution to use (not used in join operations). input=same as input, std=max width 542px, VCD=max width 352px, DVD=max width 720px, HD=max width 1280px, FHD=max width 1920px, UHD=max width 3840px, DCI=max width 4096px',
-                    choices=['input', 'std', 'VCD', 'DVD', 'HD', 'FHD', 'UHD', 'DCI'], default='input')  
-parser.add_argument('files', metavar='<FILE>', nargs='+', help='file/s to process')
+#-------------------------------------------------------------------------------
 
-# Always show Help with no params
-if len(sys.argv) < 2:
-    parser.print_help()
-    sys.exit(1)
+def run(args):
 
-# Parse arguments
-args = parser.parse_args()
-
-if len(args.join_to)==0:
-    # Info
-    if args.info:
-        print('*** Show file information:')
-    else:
-        print('*** Convert to: [{}]'.format(args.container))
-        if args.verbose:
-            print('*** [Resolution={}, FPS={}, Force_encode={}]'.format(args.resol, args.fps, args.force))
-        print('*** [Delete Input Files={}]'.format(args.delete))
-
-    # File wilcards expansion
-    # Windows support !!
-    files_expanded=[]
-    for f in args.files:
-        flist = get_files(f)
-        files_expanded = files_expanded + flist
-
-    for file in files_expanded:
-
-        sep()
-
-        # Test file existence
-        if os.path.isfile(file) and os.access(file, os.R_OK):
-
-            # Output filename
-            f_path = Path(file)
-            file_in = str(f_path)
-            file_wext = f_path.with_suffix('')
-            file_out = '{}.{}'.format(file_wext, args.container)
-            if file_out == file_in:
-                file_out = '{}.ffmpeg.{}'.format(file_wext, args.container)
-
-            if args.info:
-                print('>>> File: [{}]'.format(file))
-
-                get_file_info(file, args)
-
-                if exit_code != 0:
-                    print('!!! ERROR: Reading File [{}] (exit code {})'.format(file, exit_code))
-
-            else:
-                print('>>> Converting file [{}]\n                to: [{}]...'.format(file_in,file_out))
-
-                # The file exists
-                if video[args.container]:
-                    # Video conversion
-                    convert_video_file(file, file_out, args)
-                else:
-                    # Audio conversion
-                    convert_audio_file(file, file_out, args)
-    
-                if exit_code == 0:
-                    print('>>> Converted file [{}]\n               to: [{}]'.format(file_in,file_out))
-
-                    # Final file streams
-                    get_file_info(file_out, args)
-
-                    if exit_code != 0:
-                        print('!!! ERROR: Reading File [{}] (exit code {})'.format(file_out, exit_code))
-
-                    # Delete only if verification is sucessfull!
-                    if args.delete and exit_code == 0:
-                        if delete_file(file):
-                            print('>>> Deleted input file [{}]'.format(file))
-                        else:
-                            print('!!! ERROR: Deleting file [{}]'.format(file))
-
-                    # Check if tagging applies and was requested
-                    if video[args.container] and args.tag and exit_code == 0:
-                        # Tag Video
-                        file_list = []
-                        file_list.append(file_out)
-                        vidtag.set_file_tag(file_list) 
-                
-                else:
-                    print('!!! ERROR: Processing File [{}] (exit code {})'.format(file, exit_code))
-                    delete_file(file_out)
-                    if exit_code == 9999:
-                        print('')
-                        sys.exit ('*** Stopped ***')
-
+    if len(args.join_to)==0:
+        # Info
+        if args.info:
+            print('*** Show file information:')
         else:
-            print('!!! ERROR: File [{}] not exists or is not readable'.format(file))
+            print('*** Convert to: [{}]'.format(args.container))
+            if args.verbose:
+                print('*** [Resolution={}, FPS={}, Force_encode={}]'.format(args.resol, args.fps, args.force))
+            print('*** [Delete Input Files={}]'.format(args.delete))
+    
+        # File wilcards expansion
+        # Windows support !!
+        files_expanded=[]
+        for f in args.files:
+            flist = get_files(f)
+            files_expanded = files_expanded + flist
+    
+        for file in files_expanded:
+    
+            sep()
+    
+            # Test file existence
+            if os.path.isfile(file) and os.access(file, os.R_OK):
+    
+                # Output filename
+                f_path = Path(file)
+                file_in = str(f_path)
+                file_wext = f_path.with_suffix('')
+                file_out = '{}.{}'.format(file_wext, args.container)
+                if file_out == file_in:
+                    file_out = '{}.ffmpeg.{}'.format(file_wext, args.container)
+    
+                if args.info:
+                    print('>>> File: [{}]'.format(file))
+    
+                    get_file_info(file, args)
+    
+                    if exit_code != 0:
+                        print('!!! ERROR: Reading File [{}] (exit code {})'.format(file, exit_code))
+    
+                else:
+                    print('>>> Converting file [{}]\n                to: [{}]...'.format(file_in,file_out))
+    
+                    # The file exists
+                    if video[args.container]:
+                        # Video conversion
+                        convert_video_file(file, file_out, args)
+                    else:
+                        # Audio conversion
+                        convert_audio_file(file, file_out, args)
+        
+                    if exit_code == 0:
+                        print('>>> Converted file [{}]\n               to: [{}]'.format(file_in,file_out))
+    
+                        # Final file streams
+                        get_file_info(file_out, args)
+    
+                        if exit_code != 0:
+                            print('!!! ERROR: Reading File [{}] (exit code {})'.format(file_out, exit_code))
+    
+                        # Delete only if verification is sucessfull!
+                        if args.delete and exit_code == 0:
+                            if delete_file(file):
+                                print('>>> Deleted input file [{}]'.format(file))
+                            else:
+                                print('!!! ERROR: Deleting file [{}]'.format(file))
+    
+                        # Check if tagging applies and was requested
+                        if video[args.container] and args.tag and exit_code == 0:
+                            # Tag Video
+                            file_list = []
+                            file_list.append(file_out)
+                            vidtag.set_file_tag(file_list) 
+                    
+                    else:
+                        print('!!! ERROR: Processing File [{}] (exit code {})'.format(file, exit_code))
+                        delete_file(file_out)
+                        if exit_code == 9999:
+                            print('')
+                            sys.exit ('*** Stopped ***')
+    
+            else:
+                print('!!! ERROR: File [{}] not exists or is not readable'.format(file))
+    
+        sep()
+    
+    else:
+        # Info
+        print('>>> Joining input file to: {}'.format(args.join_to))
+    
+        join_input_files(args.files, args.join_to, args)
+    
+        if args.delete:
+            for file in args.files:
+                if delete_file(file):
+                    print('... Deleted input file [{}]'.format(file)) 
+                else: 
+                    print('!!! ERROR: Deleting file [{}]'.format(file))
 
-    sep()
+#-------------------------------------------------------------------------------
 
-else:
-    # Info
-    print('>>> Joining input file to: {}'.format(args.join_to))
+if __name__ == "__main__":
 
-    join_input_files(args.files, args.join_to, args)
+    # Get command line
+    parser = argparse.ArgumentParser(prog='conv_to', description='v2.22: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+    parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
+    parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
+    parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
+    parser.add_argument('-i', '--info', help='show file information', action='store_true')
+    parser.add_argument('-na', '--no_audio', help='do not include audio', action='store_true')
+    parser.add_argument('-ns', '--no_subs', help='do not include subtitles', action='store_true')
+    parser.add_argument('-fl', '--flip', help='flip video (rotate video 180º)', action='store_true')
+    parser.add_argument('-t', '--tag', help='tag video files width vidtag', action='store_true')
+    parser.add_argument('-f', '--fps', metavar='#FPS', help='output FPS value', default=0.0, type=float)
+    parser.add_argument('-j', '--join_to', metavar='<JOINED_FILE>', help='Joined output file (same codec expected in input files)', default='')
+    parser.add_argument('-c', '--container', metavar='<mp4|avi|mkv|m4a|mp3|ogg>', 
+                        help='output container/codec file format (not used in join operations', 
+                        choices=['mp4', 'avi', 'mkv', 'm4a', 'mp3', 'ogg'], default='mp4')
+    parser.add_argument('-r', '--resol', metavar='<input|std|VCD|DVD|HD|FHD|UHD|DCI>', 
+                        help='standard resolution to use (not used in join operations). input=same as input, std=max width 542px, VCD=max width 352px, DVD=max width 720px, HD=max width 1280px, FHD=max width 1920px, UHD=max width 3840px, DCI=max width 4096px',
+                        choices=['input', 'std', 'VCD', 'DVD', 'HD', 'FHD', 'UHD', 'DCI'], default='input')  
+    parser.add_argument('files', metavar='<FILE>', nargs='+', help='file/s to process')
+    
+    # Always show Help with no params
+    if len(sys.argv) < 2:
+        parser.print_help()
+        sys.exit(1)
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    # Create argument object
+    arguments = types.SimpleNamespace()
+    arguments.verbose = args.verbose
+    arguments.delete = args.delete
+    arguments.force = args.force
+    arguments.info = args.info
+    arguments.no_audio = args.no_audio
+    arguments.no_subs = args.no_subs
+    arguments.flip = args.flip
+    arguments.tag = args.tag
+    arguments.fps = args.fps
+    arguments.join_to = args.join_to
+    arguments.container = args.container
+    arguments.resol = args.resol
+    arguments.files = args.files
 
-    if args.delete:
-        for file in args.files:
-            if delete_file(file):
-                print('... Deleted input file [{}]'.format(file)) 
-            else: 
-                print('!!! ERROR: Deleting file [{}]'.format(file))
-
+    run(arguments)
