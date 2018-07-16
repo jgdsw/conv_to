@@ -5,6 +5,7 @@
 #
 
 import wx
+import wx.grid
 
 # begin wxGlade: dependencies
 # end wxGlade
@@ -14,17 +15,18 @@ import wx
 
 import os
 import sys
+import time
 import threading as thr
-from wx.lib.pubsub import pub
-import cmdscript as c
+from pydispatch import dispatcher
+import types
 import conv_to
 
 #-------------------------------------------------------------------------------
 
 BIN = 'bin'
-CMD_DL = '{}youtube-dl --restrict-filenames --no-check-certificate --merge-output-format mkv --sub-lang es --proxy "{}" {}'
-VCT_SCRIPT = 'VCT_SCRIPT_PUBSUB'
-VCT_PROG = 'VCT_SCRIPT_PROGRESS'
+VCT_DONE = 'VCT_SIGNAL_DONE'
+VCT_PROG = 'VCT_SIGNAL_PROGRESS'
+VCT_INIT = 'VCT_SIGNAL_START'
 
 #-------------------------------------------------------------------------------
 
@@ -35,21 +37,6 @@ def resource_path():
     except Exception:
         base_path = os.path.dirname(os.path.abspath(__file__))
     return base_path
-
-#-------------------------------------------------------------------------------
-
-def beautify (txt):
-    urls = txt.splitlines()
-    if len(urls) != 0:
-        urls = [x for x in urls if x != '']
-        urls = [x for x in urls if x.find('DONE')<0]
-        for url in urls:
-                i = urls.index(url)
-                urls[i]=url.strip()
-        b = '\n'.join(urls)
-    else:
-        b = ''
-    return b
 
 #-------------------------------------------------------------------------------
 
@@ -64,58 +51,29 @@ def get_total (txt):
 
 #-------------------------------------------------------------------------------
 
-def downloadURL (url, proxy, base):
-    c.sep('>>> URL: [{}]'.format(url))
-
-    print('*** Downloading file...')
-
-    before = c.get_files()
-
-    cmd = CMD_DL.format(base, proxy, url)
-    print ('* {} ...'.format(cmd))
-    status = c.call(cmd)
-    
-    after = c.get_files()
-    new = list(set(after) - set(before))
-
-    if len(new) != 0:
-        filename=new[0]
-        print("*** File: [{}]".format(filename))
-    else:
-        print("*** File: Already downloaded ...")
-        filename='Already downloaded'
-
-    return filename
+def convertFile (params, file):
+    print('>>> File: [{}]...'.format(file))
+    params.files = [file]
+    time.sleep(5)
+    return file
 
 #-------------------------------------------------------------------------------
 
-def downloadURLs (input_urls, folder, base):
-    if input_urls != None:
+def convertFiles (params, sender):
+    print(">>> vct: JOB started!")
 
-        if folder != None:
+    for index, file in params.files:
+        wx.CallAfter(dispatcher.send, signal=VCT_INIT, sender=sender, row=index)
+        filename = convertFile(params, file)
+        wx.CallAfter(dispatcher.send, signal=VCT_PROG, sender=sender, increment=(index, filename))
 
-            urls = input_urls.splitlines()
-
-            if len(urls) != 0:
-                c.cd(folder)
-                proxy = os.getenv('http_proxy','')
-
-                c.sep('>>> vct: URL/s to process: [folder:{}][proxy:{}]'.format(folder, proxy))
-
-                for url in urls:
-                    print(url)
-
-                for url in urls:
-                    filename = downloadURL(url, proxy, base)
-                    wx.CallAfter(pub.sendMessage, VCT_PROG, increment=(url, filename))
-
-                c.sep(">>> vct: JOB Completed!\n\n\n")
+    print(">>> vct: JOB Completed!\n")
 
 #-------------------------------------------------------------------------------
 
-def vct_run(input_urls, folder, base):
+def vct_run(params, sender):
     try:
-        downloadURLs (input_urls, folder, base)
+        convertFiles(params, sender)
         exit_status = 0
 
     except SystemExit as exit:
@@ -128,13 +86,13 @@ def vct_run(input_urls, folder, base):
         exit_status = exc
 
     # Send exit status (wx Publish/Subscribe)
-    wx.CallAfter(pub.sendMessage, VCT_SCRIPT, status=exit_status)
+    wx.CallAfter (dispatcher.send, signal=VCT_DONE, sender=sender, status=exit_status)
 
 #-------------------------------------------------------------------------------
 
-def vct_run_thread (input_urls, folder, base):
+def vct_run_thread (params, sender):
     try:
-        thr_vct_script = thr.Thread(target=vct_run,args=(input_urls, folder, base))
+        thr_vct_script = thr.Thread(target=vct_run,args=(params, sender))
         thr_vct_script.start()
         return 0
     except Exception as exc:
@@ -143,12 +101,111 @@ def vct_run_thread (input_urls, folder, base):
 
 #-------------------------------------------------------------------------------
 
+def vct_play(file, base):
+    try:
+        cmd = '{}ffplay -hide_banner "{}"'.format(base, file)
+        conv_to.exec_command(cmd, file_stdout=os.devnull, file_stderr=os.devnull)
+        exit_status = 0
+
+    except SystemExit as exit:
+        if exit.code != 0:
+            print('!!! THR Run-Time Error: [{}]'.format(exit.code))
+            exit_status = exit.code
+
+    except Exception as exc:
+        print('!!! THR Run-Time Exception: [{}]'.format(exc))
+        exit_status = exc
+
+#-------------------------------------------------------------------------------
+
+def vct_run_player (file, base):
+    try:
+        thr_vct_script = thr.Thread(target=vct_play,args=(file, base))
+        thr_vct_script.start()
+        return 0
+    except Exception as exc:
+        print('!!! Run-Time Exception: [{}]'.format(exc))
+        return(exc)
+
+#-------------------------------------------------------------------------------
+
+def SignalStart (sender, row):
+    sender.gc_files.SetCellValue(row, 2, "On going...")
+    sender.gc_files.SetCellTextColour(row, 2, wx.YELLOW)
+
+    sender.gc_files.AutoSizeColumn(2)
+    sender.gc_files.AutoSizeColumn(3)
+    sender.gc_files.AutoSizeColumn(4)
+
+#-------------------------------------------------------------------------------
+
+def SignalDone(sender, status):
+    if status != 0:
+        wx.MessageBox('VDG Operation could not be completed:\n{}'.format(status), 'Error', wx.OK | wx.ICON_ERROR)
+
+    sender.CONVERTING=False
+    sender.button_OK.Enable()
+    sender.button_join_to.Enable()
+    sender.button_3.Enable()
+    sender.button_4.Enable()
+
+#-------------------------------------------------------------------------------
+
+def SignalProgress(sender, increment):
+    sender.done = sender.done+1
+    perc=(sender.done/sender.total)*100
+
+    sender.label_progress.SetLabel('{:.0f}%'.format(perc))
+    sender.gauge.SetValue(perc)
+
+    index = increment[0]
+    file = increment[1]
+
+    sender.gc_files.SetCellValue(index, 2, "Done")
+    sender.gc_files.SetCellTextColour(index, 2, wx.GREEN)
+    sender.gc_files.SetCellValue(index, 3, file)
+    sender.gc_files.SetCellValue(index, 4, '{:.2f} MB'.format(conv_to.show_file_size(file, verbose=False)))
+
+    sender.gc_files.AutoSizeColumn(2)
+    sender.gc_files.AutoSizeColumn(3)
+    sender.gc_files.AutoSizeColumn(4)
+
+#-------------------------------------------------------------------------------
+
+def ShowFileInfo (file, cmd_bin):
+    # Create argument object
+    arguments = types.SimpleNamespace()
+    arguments.verbose = False
+    arguments.delete = False
+    arguments.force = False
+    arguments.info = True
+    arguments.no_audio = False
+    arguments.no_subs = False
+    arguments.flip = False
+    arguments.tag = False
+    arguments.fps = 0.0
+    arguments.join_to = ''
+    arguments.container = 'mp4'
+    arguments.resol = 'input'
+    arguments.files = [file]
+    arguments.bin = cmd_bin
+    conv_to.run(arguments)
+
+#-------------------------------------------------------------------------------          
+
+def ToFloat(value):
+    try:
+        return (float(value))
+    except:
+        return (0.0)
+
+#-------------------------------------------------------------------------------
+
 class RedirectText(object):
     def __init__(self,aWxTextCtrl):
         self.out=aWxTextCtrl
 
     def write(self,string):
-        #self.out.WriteText(string)
         wx.CallAfter(self.out.WriteText, string)
 
 #-------------------------------------------------------------------------------
@@ -158,42 +215,48 @@ class MyVCT(wx.Frame):
         # begin wxGlade: MyVCT.__init__
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
-        self.SetSize((800, 600))
-        self.list_ctrl = wx.ListCtrl(self, wx.ID_ANY, style=wx.LC_HRULES | wx.LC_REPORT | wx.LC_VRULES)
+        self.SetSize((800, 700))
+        
+        # Menu Bar
+        self.VCT_menubar = wx.MenuBar()
+        self.SetMenuBar(self.VCT_menubar)
+        # Menu Bar end
+        self.gc_files = wx.grid.Grid(self, wx.ID_ANY, size=(1, 1))
         self.button_3 = wx.Button(self, wx.ID_ANY, "Clean files")
         self.button_4 = wx.Button(self, wx.ID_ANY, "Select files")
-        self.checkbox_1 = wx.CheckBox(self, wx.ID_ANY, "Verbose log.", style=wx.CHK_2STATE)
-        self.checkbox_2 = wx.CheckBox(self, wx.ID_ANY, "Delete original files", style=wx.CHK_2STATE)
-        self.checkbox_3 = wx.CheckBox(self, wx.ID_ANY, "Tag video file", style=wx.CHK_2STATE)
-        self.checkbox_4 = wx.CheckBox(self, wx.ID_ANY, "Show file info", style=wx.CHK_2STATE)
-        self.checkbox_5 = wx.CheckBox(self, wx.ID_ANY, "No audio", style=wx.CHK_2STATE)
-        self.checkbox_6 = wx.CheckBox(self, wx.ID_ANY, "No subtitles", style=wx.CHK_2STATE)
-        self.checkbox_7 = wx.CheckBox(self, wx.ID_ANY, u"Flip video 180\u00ba", style=wx.CHK_2STATE)
-        self.checkbox_8 = wx.CheckBox(self, wx.ID_ANY, "Force conversion", style=wx.CHK_2STATE)
-        self.combo_box_FPS = wx.ComboBox(self, wx.ID_ANY, choices=["input", "NTSC", "PAL"], style=wx.CB_DROPDOWN)
-        self.combo_box_Container = wx.ComboBox(self, wx.ID_ANY, choices=["mp3", "m4a", "ogg", "avi", "mp4", "mkv"], style=wx.CB_DROPDOWN)
-        self.combo_box_Resolution = wx.ComboBox(self, wx.ID_ANY, choices=["input", "std", "VCD", "DVD", "HD", "FHD", "UHD", "DCI"], style=wx.CB_DROPDOWN)
+        self.ch_delete = wx.CheckBox(self, wx.ID_ANY, "Delete originals", style=wx.CHK_2STATE)
+        self.ch_tag = wx.CheckBox(self, wx.ID_ANY, "Tag video file", style=wx.CHK_2STATE)
+        self.ch_ns = wx.CheckBox(self, wx.ID_ANY, "No subtitles", style=wx.CHK_2STATE)
+        self.ch_na = wx.CheckBox(self, wx.ID_ANY, "No audio", style=wx.CHK_2STATE)
+        self.ch_force = wx.CheckBox(self, wx.ID_ANY, "Force", style=wx.CHK_2STATE)
+        self.ch_flip = wx.CheckBox(self, wx.ID_ANY, u"Flip 180\u00ba", style=wx.CHK_2STATE)
+        self.cb_container = wx.ComboBox(self, wx.ID_ANY, choices=["mp3", "m4a", "ogg", "avi", "mp4", "mkv"], style=wx.CB_DROPDOWN)
+        self.cb_fps = wx.ComboBox(self, wx.ID_ANY, choices=["input", "24", "23.98", "25", "29.97", "30", "50", "59.94", "60"], style=wx.CB_DROPDOWN)
+        self.cb_resolution = wx.ComboBox(self, wx.ID_ANY, choices=["input", "std", "VCD", "DVD", "HD", "FHD", "UHD", "DCI"], style=wx.CB_DROPDOWN)
+        self.button_join_to = wx.Button(self, wx.ID_ANY, "Join to file")
+        self.join_to = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_READONLY)
         self.label_progress = wx.StaticText(self, wx.ID_ANY, "", style=wx.ALIGN_RIGHT)
         self.gauge = wx.Gauge(self, wx.ID_ANY, 100)
-        self.button_urls = wx.Button(self, wx.ID_ANY, "Clean")
-        self.button_log = wx.Button(self, wx.ID_ANY, "Clean log.")
-        self.button_OK = wx.Button(self, wx.ID_ANY, "OK")
+        self.button_OK = wx.Button(self, wx.ID_ANY, "Convert")
         self.text_ctrl_log = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.HSCROLL | wx.TE_MULTILINE | wx.TE_READONLY)
 
         self.__set_properties()
         self.__do_layout()
 
+        self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_CLICK, self.cellSelected, self.gc_files)
+        self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_DCLICK, self.cellActivated, self.gc_files)
         self.Bind(wx.EVT_BUTTON, self.cleanFiles, self.button_3)
         self.Bind(wx.EVT_BUTTON, self.selectFiles, self.button_4)
-        self.Bind(wx.EVT_BUTTON, self.CleanURLs, self.button_urls)
-        self.Bind(wx.EVT_BUTTON, self.CleanLog, self.button_log)
-        self.Bind(wx.EVT_BUTTON, self.ProcessURLs, self.button_OK)
+        self.Bind(wx.EVT_COMBOBOX, self.containerSelected, self.cb_container)
+        self.Bind(wx.EVT_BUTTON, self.outputFolder, self.button_join_to)
+        self.Bind(wx.EVT_BUTTON, self.convertFiles, self.button_OK)
         # end wxGlade
 
         self.done =  0
         self.total = 0
         self.label_progress.SetLabel('')
         self.gauge.SetValue(0)
+        self.CONVERTING = False
 
         # Redirect STDOUT/STDERR
         redir=RedirectText(self.text_ctrl_log)
@@ -201,148 +264,284 @@ class MyVCT(wx.Frame):
         sys.stderr=redir
 
         self.CMDROOT = os.path.join(resource_path(), BIN, '')
+        print(self.CMDROOT)
 
-         # create pubsub receiver (VCT_SCRIPT Thread)
-        pub.subscribe(self.ThrDone, VCT_SCRIPT)
-        pub.subscribe(self.ThrProgress, VCT_PROG)
+        # create pubsub receivers
+        dispatcher.connect(SignalDone, signal=VCT_DONE, sender=self)
+        dispatcher.connect(SignalProgress, signal=VCT_PROG, sender=self)
+        dispatcher.connect(SignalStart, signal=VCT_INIT, sender=self)
 
     def __set_properties(self):
         # begin wxGlade: MyVCT.__set_properties
         self.SetTitle("VCT")
-        self.list_ctrl.AppendColumn("File", format=wx.LIST_FORMAT_LEFT, width=600)
-        self.list_ctrl.AppendColumn("Status", format=wx.LIST_FORMAT_LEFT, width=-1)
-        self.combo_box_FPS.SetSelection(0)
-        self.combo_box_Container.SetSelection(4)
-        self.combo_box_Resolution.SetSelection(0)
+        self.gc_files.CreateGrid(0, 5)
+        self.gc_files.SetRowLabelSize(30)
+        self.gc_files.SetColLabelSize(20)
+        self.gc_files.EnableEditing(0)
+        self.gc_files.EnableDragRowSize(0)
+        self.gc_files.SetColLabelValue(0, "File")
+        self.gc_files.SetColSize(0, 262)
+        self.gc_files.SetColLabelValue(1, "Size")
+        self.gc_files.SetColSize(1, 75)
+        self.gc_files.SetColLabelValue(2, "Status")
+        self.gc_files.SetColSize(2, 78)
+        self.gc_files.SetColLabelValue(3, "Output File")
+        self.gc_files.SetColSize(3, 262)
+        self.gc_files.SetColLabelValue(4, "Output Size")
+        self.gc_files.SetColSize(4, 75)
+        self.ch_delete.SetToolTip("Delete original input files once the conversion has finished successfully.")
+        self.ch_tag.SetToolTip(u"Set a tag on the output video file name on the form of \u201c[9999x999-<video_codec>]\u201d.")
+        self.ch_ns.SetToolTip("Do not process subtitles. Output files will not have subtitles streams.")
+        self.ch_na.SetToolTip("Do not process audio. Output files will not have audio streams.")
+        self.ch_force.SetToolTip("Force re-encoding of files. Do not optimize conversion process.")
+        self.ch_flip.SetToolTip(u"Rotate video 180\u00ba (upside down).")
+        self.cb_container.SetToolTip("Set the container format value for the converted files")
+        self.cb_container.SetSelection(4)
+        self.cb_fps.SetToolTip("Set the FPS value for the converted files")
+        self.cb_fps.SetSelection(0)
+        self.cb_resolution.SetToolTip("Set the resolution value for the converted files")
+        self.cb_resolution.SetSelection(0)
+        self.join_to.SetToolTip("Set the output folder for the output file containing the joining of the selected input files.")
         self.label_progress.SetMinSize((40, 15))
+        self.text_ctrl_log.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BACKGROUND))
         self.text_ctrl_log.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
         # end wxGlade
 
     def __do_layout(self):
         # begin wxGlade: MyVCT.__do_layout
-        sizer_app = wx.BoxSizer(wx.VERTICAL)
-        sizer_1 = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, "Log"), wx.HORIZONTAL)
-        sizer_buttons = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, "Commands"), wx.HORIZONTAL)
-        sizer_options = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, "Settings"), wx.HORIZONTAL)
-        grid_sizer_1 = wx.GridSizer(4, 4, 0, 0)
-        sizer_files = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, "Files"), wx.VERTICAL)
-        grid_sizer_2 = wx.GridSizer(0, 2, 0, 0)
-        sizer_files.Add(self.list_ctrl, 3, wx.ALL | wx.EXPAND, 5)
+        self.sizer_app = wx.BoxSizer(wx.VERTICAL)
+        self.sizer_1 = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, "Details/Log"), wx.HORIZONTAL)
+        self.sizer_buttons = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer_join = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer_options_cb = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer_options_ck = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_files = wx.BoxSizer(wx.VERTICAL)
+        grid_sizer_2 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_files.Add(self.gc_files, 1, wx.ALL | wx.EXPAND, 5)
         grid_sizer_2.Add(self.button_3, 0, wx.ALL, 5)
+        grid_sizer_2.Add((20, 20), 9, wx.EXPAND, 0)
         grid_sizer_2.Add(self.button_4, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
         sizer_files.Add(grid_sizer_2, 0, wx.EXPAND, 0)
-        sizer_app.Add(sizer_files, 4, wx.ALL | wx.EXPAND, 0)
-        grid_sizer_1.Add(self.checkbox_1, 0, 0, 0)
-        grid_sizer_1.Add(self.checkbox_2, 0, 0, 0)
-        grid_sizer_1.Add(self.checkbox_3, 0, 0, 0)
-        grid_sizer_1.Add(self.checkbox_4, 0, 0, 0)
-        grid_sizer_1.Add(self.checkbox_5, 0, 0, 0)
-        grid_sizer_1.Add(self.checkbox_6, 0, 0, 0)
-        grid_sizer_1.Add(self.checkbox_7, 0, 0, 0)
-        grid_sizer_1.Add(self.checkbox_8, 0, 0, 0)
-        FPS = wx.StaticText(self, wx.ID_ANY, "FPS:")
-        grid_sizer_1.Add(FPS, 0, 0, 0)
+        self.sizer_app.Add(sizer_files, 4, wx.ALL | wx.EXPAND, 4)
+        self.sizer_options_ck.Add(self.ch_delete, 0, wx.ALL, 5)
+        self.sizer_options_ck.Add(self.ch_tag, 0, wx.ALL, 5)
+        self.sizer_options_ck.Add(self.ch_ns, 0, wx.ALL, 5)
+        self.sizer_options_ck.Add(self.ch_na, 0, wx.ALL, 5)
+        self.sizer_options_ck.Add(self.ch_force, 0, wx.ALL, 5)
+        self.sizer_options_ck.Add(self.ch_flip, 0, wx.ALL, 5)
+        self.sizer_app.Add(self.sizer_options_ck, 0, wx.ALL | wx.EXPAND, 4)
         label_1 = wx.StaticText(self, wx.ID_ANY, "Container:")
-        grid_sizer_1.Add(label_1, 0, 0, 0)
+        label_1.SetFont(wx.Font(12, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.sizer_options_cb.Add(label_1, 0, wx.ALIGN_RIGHT | wx.ALL, 10)
+        self.sizer_options_cb.Add(self.cb_container, 0, wx.ALL, 5)
+        FPS = wx.StaticText(self, wx.ID_ANY, "FPS:")
+        FPS.SetFont(wx.Font(12, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.sizer_options_cb.Add(FPS, 0, wx.ALIGN_RIGHT | wx.ALL, 10)
+        self.sizer_options_cb.Add(self.cb_fps, 0, wx.ALL, 5)
         label_2 = wx.StaticText(self, wx.ID_ANY, "Resolution:")
-        grid_sizer_1.Add(label_2, 0, 0, 0)
-        grid_sizer_1.Add((0, 0), 0, 0, 0)
-        grid_sizer_1.Add(self.combo_box_FPS, 0, 0, 0)
-        grid_sizer_1.Add(self.combo_box_Container, 0, 0, 0)
-        grid_sizer_1.Add(self.combo_box_Resolution, 0, 0, 0)
-        grid_sizer_1.Add((0, 0), 0, 0, 0)
-        sizer_options.Add(grid_sizer_1, 1, wx.EXPAND, 0)
-        sizer_app.Add(sizer_options, 0, wx.EXPAND, 0)
-        sizer_buttons.Add(self.label_progress, 0, wx.ALL, 5)
-        sizer_buttons.Add(self.gauge, 9, wx.ALL | wx.EXPAND, 5)
-        sizer_buttons.Add(self.button_urls, 0, wx.ALL, 5)
-        sizer_buttons.Add(self.button_log, 0, wx.ALL, 5)
-        sizer_buttons.Add(self.button_OK, 0, wx.ALL, 5)
-        sizer_app.Add(sizer_buttons, 0, wx.EXPAND, 0)
-        sizer_1.Add(self.text_ctrl_log, 1, wx.ALL | wx.EXPAND, 5)
-        sizer_app.Add(sizer_1, 2, wx.EXPAND, 0)
-        self.SetSizer(sizer_app)
+        label_2.SetFont(wx.Font(12, wx.DEFAULT, wx.NORMAL, wx.BOLD, 0, ""))
+        self.sizer_options_cb.Add(label_2, 0, wx.ALIGN_RIGHT | wx.ALL, 10)
+        self.sizer_options_cb.Add(self.cb_resolution, 0, wx.ALL, 5)
+        self.sizer_app.Add(self.sizer_options_cb, 0, wx.ALL | wx.EXPAND, 4)
+        self.sizer_join.Add(self.button_join_to, 0, wx.ALL, 5)
+        self.sizer_join.Add(self.join_to, 5, wx.ALL, 5)
+        self.sizer_app.Add(self.sizer_join, 0, wx.ALL | wx.EXPAND, 4)
+        self.sizer_buttons.Add(self.label_progress, 0, wx.ALL, 5)
+        self.sizer_buttons.Add(self.gauge, 9, wx.ALL | wx.EXPAND, 5)
+        self.sizer_buttons.Add(self.button_OK, 0, wx.ALIGN_RIGHT | wx.ALL | wx.EXPAND, 5)
+        self.sizer_app.Add(self.sizer_buttons, 0, wx.ALL | wx.EXPAND, 4)
+        self.sizer_1.Add(self.text_ctrl_log, 10, wx.ALL | wx.EXPAND, 0)
+        self.sizer_app.Add(self.sizer_1, 3, wx.EXPAND, 0)
+        self.SetSizer(self.sizer_app)
         self.Layout()
         # end wxGlade
-
-    def SetDirDialog(self, event):  # wxGlade: MyVCT.<event_handler>
-        dialog = wx.DirDialog(None, "Choose a directory:",style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
-        if dialog.ShowModal() == wx.ID_OK:
-            self.text_ctrl_path.SetValue(dialog.GetPath())
-        dialog.Destroy()
-        event.Skip()
 
     def ExitApp(self, event):  # wxGlade: MyVCT.<event_handler>
         self.Close()
         event.Skip()
 
-    def ProcessURLs(self, event):  # wxGlade: MyVCT.<event_handler>
-        input = self.text_ctrl_urls.GetValue()
-        input = beautify(input)
-        self.text_ctrl_urls.SetValue(input)
-        path = self.text_ctrl_path.GetValue()
-        self.text_ctrl_log.SetValue('')
-        self.total = get_total(input)
-        self.done = 0
-        self.gauge.SetValue(0)
-        self.label_progress.SetLabel('')
-
-        if self.total!=0 and len(path)!=0:
-            status = vct_run_thread(input_urls=input, folder=path, base=self.CMDROOT)
-            if status != 0:
-                wx.MessageBox('Error launching operation:\n{}'.format(status), 'Error', wx.OK | wx.ICON_ERROR)
-            else:
-                self.button_OK.Disable()
-                self.button_log.Disable()
-                self.button_urls.Disable()
-        else:
-            wx.MessageBox('Not enough parameters set (URLs / Output location)', 'Warning', wx.OK | wx.ICON_WARNING)
-
-        event.Skip()
-
-    def ThrDone(self, status):
-        if status != 0:
-            wx.MessageBox('VCT Operation could not be completed:\n{}'.format(status), 'Error', wx.OK | wx.ICON_ERROR)
-
-        self.button_OK.Enable()
-        self.button_log.Enable()
-        self.button_urls.Enable()
-
-    def ThrProgress(self, increment):
-        self.done = self.done+1
-        perc=(self.done/self.total)*100
-        info = '({:02d}/{:02d}) {} [DONE! File:{}]'.format(self.done, self.total, increment[0], increment[1])
-
-        urls=self.text_ctrl_urls.GetValue().splitlines()
-        if increment[0] in urls:
-            i = urls.index(increment[0])
-            urls[i] = info
-        str_urls = '\n'.join(urls)
-
-        self.label_progress.SetLabel('{:.0f}%'.format(perc))
-        self.gauge.SetValue(perc)
-    
-        wx.CallAfter(self.text_ctrl_urls.SetValue, str_urls)
-        wx.Yield()
-
-    def CleanURLs(self, event):  # wxGlade: MyVCT.<event_handler>
-        self.text_ctrl_urls.SetValue('')
-        self.gauge.SetValue(0)
-        self.label_progress.SetLabel('')
-        event.Skip()
-
-    def CleanLog(self, event):  # wxGlade: MyVCT.<event_handler>
-        self.text_ctrl_log.SetValue('')
-        self.gauge.SetValue(0)
-        self.label_progress.SetLabel('')
-        event.Skip()
-
     def cleanFiles(self, event):  # wxGlade: MyVCT.<event_handler>
-        print("Event handler 'cleanFiles' not implemented!")
+        self.text_ctrl_log.SetValue('')
+        self.gauge.SetValue(0)
+        self.label_progress.SetLabel('')
+
+        rows = self.gc_files.GetNumberRows()
+        if rows > 0:
+            self.gc_files.DeleteRows(0,rows)
+
         event.Skip()
+
     def selectFiles(self, event):  # wxGlade: MyVCT.<event_handler>
-        print("Event handler 'selectFiles' not implemented!")
+        self.text_ctrl_log.SetValue('')
+        self.gauge.SetValue(0)
+        self.label_progress.SetLabel('')
+
+        dialog = wx.FileDialog(None, "Choose audio/video file/s:", style=wx.FD_OPEN|wx.FD_MULTIPLE|wx.FD_FILE_MUST_EXIST)
+        if dialog.ShowModal() == wx.ID_OK:
+            selecteds = dialog.GetPaths()
+            for f in selecteds:
+                row = self.gc_files.GetNumberRows()
+                self.gc_files.AppendRows(1)
+                self.gc_files.SetCellValue(row, 0, f)
+                self.gc_files.SetCellValue(row, 1, '{:.2f} MB'.format(conv_to.show_file_size(f, verbose=False)))
+                sz_color = (0x6d, 0x6e, 0x61)
+                self.gc_files.SetCellTextColour(row, 1, sz_color)
+                self.gc_files.SetCellValue(row, 2, 'On Queue')
+                #bg_color = wx.SystemSettings.GetColour(wx.SYS_COLOUR_BACKGROUND)
+                #self.gc_files.SetCellBackgroundColour(row, 2, bg_color)
+                self.gc_files.SetCellTextColour(row, 2, wx.BLUE)
+                self.gc_files.SetCellValue(row, 3, '')
+                self.gc_files.SetCellValue(row, 4, '')
+                self.gc_files.SetCellTextColour(row, 4, sz_color)
+        dialog.Destroy()
+        self.gc_files.AutoSizeColumn(0)
+        self.gc_files.AutoSizeColumn(1)
+        self.gc_files.AutoSizeColumn(2)
+        self.gc_files.AutoSizeColumn(3)
+        self.gc_files.AutoSizeColumn(4)
         event.Skip()
+
+    def outputFolder(self, event):  # wxGlade: MyVCT.<event_handler>
+        self.text_ctrl_log.SetValue('')
+        self.gauge.SetValue(0)
+        self.label_progress.SetLabel('')
+
+        dialog = wx.FileDialog(None, "Choose join file:", style=wx.FD_SAVE|wx.FD_OVERWRITE_PROMPT)
+        if dialog.ShowModal() == wx.ID_OK:
+            self.join_to.SetValue(dialog.GetPath())
+            self.cb_container.Disable()
+            self.ch_delete.Disable()
+            self.cb_resolution.Disable()
+            self.cb_fps.Disable()
+            self.ch_tag.Disable()
+            self.ch_ns.Disable()
+            self.ch_na.Disable()
+            self.ch_force.Disable()
+            self.ch_flip.Disable()
+        else:
+            self.join_to.SetValue('')
+            self.cb_container.Enable()
+            self.ch_delete.Enable()
+            if conv_to.IsVideo(self.cb_container.GetValue()):
+                self.cb_resolution.Enable()
+                self.cb_fps.Enable()
+                self.ch_tag.Enable()
+                self.ch_ns.Enable()
+                self.ch_na.Enable()
+                self.ch_force.Enable()
+                self.ch_flip.Enable()
+            else:
+                self.cb_resolution.Disable()
+                self.cb_fps.Disable()
+                self.ch_tag.Disable()
+                self.ch_ns.Disable()
+                self.ch_na.Disable()
+                self.ch_force.Disable()
+                self.ch_flip.Disable()
+        dialog.Destroy()
+        event.Skip()
+
+    def convertFiles(self, event):  # wxGlade: MyVCT.<event_handler>
+        self.total = self.gc_files.GetNumberRows()
+        self.done = 0
+
+        files_list = []
+        for ind in range(0,self.total):
+            file = self.gc_files.GetCellValue(ind, 0)
+            item = (ind, file)
+            files_list.append(item)
+
+        # Create argument object
+        arguments = types.SimpleNamespace()
+        arguments.verbose = False
+        arguments.delete = self.ch_delete.GetValue()
+        arguments.force = self.ch_force.GetValue()
+        arguments.info = False
+        arguments.no_audio = self.ch_na.GetValue()
+        arguments.no_subs = self.ch_ns.GetValue()
+        arguments.flip = self.ch_flip.GetValue()
+        arguments.tag = self.ch_tag.GetValue()
+        arguments.fps = ToFloat(self.cb_fps.GetValue())
+        arguments.join_to = self.join_to.GetValue()
+        arguments.container = self.cb_container.GetValue()
+        arguments.resol = self.cb_resolution.GetValue()
+        arguments.files = files_list
+        arguments.bin = self.CMDROOT
+
+        if self.total != 0:
+            status = vct_run_thread(params=arguments, sender=self)
+            if status != 0:
+                wx.MessageBox('Error launching operation:\n{}'.format(status), 'Error', wx.OK|wx.ICON_ERROR)
+            else:
+                self.CONVERTING=True
+                self.text_ctrl_log.SetValue('')
+                self.gauge.SetValue(0)
+                self.label_progress.SetLabel('0%')
+                self.button_OK.Disable()
+                self.button_join_to.Disable()
+                self.button_3.Disable()
+                self.button_4.Disable()
+        else:
+            wx.MessageBox('Not enough parameters set', 'Warning', wx.OK|wx.ICON_WARNING)
+
+        event.Skip()
+
+    def containerSelected(self, event):  # wxGlade: MyVCT.<event_handler>
+        if not self.CONVERTING:
+            self.text_ctrl_log.SetValue('')
+            self.gauge.SetValue(0)
+            self.label_progress.SetLabel('')
+
+        if conv_to.IsVideo(self.cb_container.GetValue()):
+            self.cb_resolution.Enable()
+            self.cb_fps.Enable()
+            self.ch_tag.Enable()
+            self.ch_ns.Enable()
+            self.ch_na.Enable()
+            self.ch_force.Enable()
+            self.ch_flip.Enable()
+        else:
+            self.cb_resolution.Disable()
+            self.cb_fps.Disable()
+            self.ch_tag.Disable()
+            self.ch_ns.Disable()
+            self.ch_na.Disable()
+            self.ch_force.Disable()
+            self.ch_flip.Disable()
+        event.Skip()
+
+    def cellSelected(self, event):  # wxGlade: MyVCT.<event_handler>
+        if not self.CONVERTING:
+            self.text_ctrl_log.SetValue('')
+            self.gauge.SetValue(0)
+            self.label_progress.SetLabel('')
+
+            col = event.GetCol()
+            if col == 0 or col == 3:
+                file = self.gc_files.GetCellValue(event.GetRow(), col)
+                if len(file)!=0:
+                    ShowFileInfo(file, self.CMDROOT)
+
+        event.Skip()
+
+    def cellActivated(self, event):  # wxGlade: MyVCT.<event_handler>
+        if not self.CONVERTING:
+            self.text_ctrl_log.SetValue('')
+            self.gauge.SetValue(0)
+            self.label_progress.SetLabel('')
+
+        col = event.GetCol()
+        if col == 0 or col == 3:
+            file = self.gc_files.GetCellValue(event.GetRow(), col)
+            if len(file)!=0:
+                dlg = wx.MessageDialog(None, 'Do you want to play file:\n"{}"?'.format(file),'VCT Player',wx.YES_NO | wx.ICON_QUESTION)
+                result = dlg.ShowModal()       
+                if result == wx.ID_YES:
+                    status = vct_run_player(file=file, base=self.CMDROOT)
+                    if status != 0:
+                        wx.MessageBox('Error launching VCT Player', 'Error', wx.OK|wx.ICON_ERROR)
+        event.Skip()
+
 # end of class MyVCT
 
 class vct(wx.App):

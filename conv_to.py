@@ -49,40 +49,87 @@ def get_files (file_pattern='*.*', verbose=False):
 
 #-------------------------------------------------------------------------------
 
-def exec_command (cmd, get_output=True, info=True):
+def _filter_out (str_list):
+    filtered_list = []
+    for item in str_list:
+        filtered_list.append(item.strip())
+    return filtered_list
 
-    if info:
-        print('\n[{}]'.format(cmd))
+#-------------------------------------------------------------------------------
 
-    # De-construct command in list is not needed if command is going to be
-    # passed through the OS shell 
-    # cmd = [cmd]
+def exec_command (cmd, get_stdout=True, get_stderr=False, file_stdin='', file_stdout='', file_stderr='', exit=False, verbose=False):
+    """Executes a given command. Returns the status completion, stdout and stderr of the command"""
+    if verbose:
+        print('exec:({})'.format(cmd))
 
+    stdin_run = None
+    stdout_run = None
+    stderr_run = None
+
+    if file_stdin != '':
+        stdin_run = open(file_stdin, 'r')
+
+    if file_stdout != '':
+        get_stdout = False
+        stdout_run = open(file_stdout,'w')
+
+    if get_stdout:
+        stdout_run=subprocess.PIPE
+
+    if file_stderr != '':
+        get_stderr = False
+        stderr_run = open(file_stderr,'w')
+
+    if get_stderr:
+        stderr_run=subprocess.PIPE
+
+    cp = subprocess.run(cmd, shell=True, stdin=stdin_run, stdout=stdout_run, stderr=stderr_run)
+
+    if file_stdin != '':
+        stdin_run.close()
+
+    if file_stdout != '':
+        stdout_run.close()
+
+    if file_stderr != '':
+        stderr_run.close()
+
+    if verbose:
+        print(cp)
+
+    # Output STDOUT stream if requested
     try:
-        if get_output:
-            cp = subprocess.check_output(cmd, shell=True)
-            status = 0
-            str_out = cp.decode(sys.stdout.encoding)
-            out = str_out.split('\n')
+        str_out = cp.stdout.decode('utf-8', 'replace')
+        out = str_out.splitlines()
+        out = _filter_out(out)
+        if len(out) != 0:
             if out[-1] == '':
                 out=out[:-1]
-        else:
-            cp = subprocess.call(cmd, shell=True)
-            status = cp
-            out = []
     except:
-        print('')
-        print('')
-        print('!!! External command failed or aborted')
-        print('')
-
         out = []
-        status = 9999
 
-    if info:
-        print('')
+    # Output STDERR stream if requested
+    try:
+        str_err = cp.stderr.decode('utf-8', 'replace')
+        err = str_err.splitlines()
+        err = _filter_out(err)
+        if len(err) != 0:
+            if err[-1] == '':
+                err=err[:-1]
+    except:
+        err = []
 
-    return status, out
+    # Output return status
+    status = cp.returncode
+
+    if verbose:
+        print('status:({})\nstdout:({}, "{}")\nstderr:({}, "{}")'.format(status, out, file_stdout, err, file_stderr))
+
+    if exit:
+        if status != 0:
+            sys.exit('exec: Error [{}] executing ["{}"]'.format(status, cmd))
+
+    return status, out, err
 
 #-------------------------------------------------------------------------------
 
@@ -110,8 +157,8 @@ def join_input_files (files, f_out, args):
     tmp.close()
 
     # Command to join
-    join_command = ffmpeg_join.format(info[args.verbose], tmppath, f_out)
-    st, out = exec_command(join_command, get_output=False, info=args.verbose)
+    join_command = ffmpeg_join.format(args.bin, info[args.verbose], tmppath, f_out)
+    st, out, err = exec_command(join_command, get_stdout=False, verbose=args.verbose)
 
     # Remove temporary file
     if not delete_file(tmppath):
@@ -137,8 +184,8 @@ def get_video_streams (file, options, args, info=False):
     global ffprobe_video, video_resolution, video_container, stream_video_quality, \
            OV_stream, O_copy, rotate180, video_filters 
 
-    ffprobe_args = ffprobe_video.format(file)
-    st, out = exec_command(ffprobe_args, info=args.verbose)
+    ffprobe_args = ffprobe_video.format(args.bin, file)
+    st, out, err = exec_command(ffprobe_args, verbose=args.verbose)
 
     header=False
 
@@ -242,8 +289,8 @@ def get_audio_streams (file, options, args, info=False):
 
     else:
         # Get audio streams info
-        ffprobe_args = ffprobe_audio.format(file)
-        st, out = exec_command(ffprobe_args, info=args.verbose)
+        ffprobe_args = ffprobe_audio.format(args.bin, file)
+        st, out, err = exec_command(ffprobe_args, verbose=args.verbose)
 
         if st == 0:
 
@@ -321,8 +368,8 @@ def get_subs_streams (file, options, args, info=False):
 
     else:
         # Get audio streams info
-        ffprobe_args = ffprobe_subs.format(file)
-        st, out = exec_command(ffprobe_args, info=args.verbose)
+        ffprobe_args = ffprobe_subs.format(args.bin, file)
+        st, out, err = exec_command(ffprobe_args, verbose=args.verbose)
 
         if st == 0:
 
@@ -388,7 +435,7 @@ def get_subs_streams (file, options, args, info=False):
 
 #-------------------------------------------------------------------------------
 
-def show_file_size (file):
+def show_file_size (file, verbose=True):
     f = Path(file)
     try:
         ver2=sys.version_info[1]
@@ -401,7 +448,9 @@ def show_file_size (file):
         size = ((s/1024)/1024)
     except OSError:
         size = 0
-    print('# Size: {:.2f} MB'.format(size))
+    if verbose:
+        print('# Size: {:.2f} MB'.format(size))
+    return size
 
 #-------------------------------------------------------------------------------
 
@@ -431,8 +480,8 @@ def convert_video_file (file, file_out, args):
         options_string = options_string.strip()
 
         # Final command
-        comm = ffmpeg_comm.format(info[args.verbose], file, options_string, file_out)
-        st, out = exec_command(comm, get_output=False, info=args.verbose)
+        comm = ffmpeg_comm.format(args.bin, info[args.verbose], file, options_string, file_out)
+        st, out, err = exec_command(comm, get_stdout=False, verbose=args.verbose)
         exit_code = st
 
     else:
@@ -462,9 +511,17 @@ def get_file_info (file, args):
 def convert_audio_file (file, file_out, args):
     global audio_container, info, exit_code
 
-    audio_command = audio_container[args.container].format(info[args.verbose], file, file_out)
-    st, out = exec_command(audio_command, get_output=False, info=args.verbose)
+    audio_command = audio_container[args.container].format(args.bin, info[args.verbose], file, file_out)
+    st, out, err = exec_command(audio_command, get_stdout=False, verbose=args.verbose)
     exit_code = st
+
+#-------------------------------------------------------------------------------
+
+def IsVideo (container):
+    try:
+        return (video[container])
+    except:
+        return (False)
 
 #-------------------------------------------------------------------------------
 
@@ -480,9 +537,9 @@ video = {
 
 # FFMPEG command for dealing with audio containers
 audio_container = {
-'mp3': 'ffmpeg -stats -hide_banner -y {} -i "{}" -map_metadata 0 -vcodec png -ac 2 -c:a libmp3lame -b:a 160k -r:a 48000 "{}"',
-'m4a': 'ffmpeg -stats -hide_banner -y {} -i "{}" -map_metadata 0 -vn -ac 2 -c:a aac -b:a 160k -r:a 48000 "{}"',
-'ogg': 'ffmpeg -stats -hide_banner -y {} -i "{}" -map_metadata 0 -vn -ac 2 -c:a libvorbis -b:a 160k -r:a 48000 "{}"'
+'mp3': '{}ffmpeg -stats -hide_banner -y {} -i "{}" -map_metadata 0 -vcodec png -ac 2 -c:a libmp3lame -b:a 160k -r:a 48000 "{}"',
+'m4a': '{}ffmpeg -stats -hide_banner -y {} -i "{}" -map_metadata 0 -vn -ac 2 -c:a aac -b:a 160k -r:a 48000 "{}"',
+'ogg': '{}ffmpeg -stats -hide_banner -y {} -i "{}" -map_metadata 0 -vn -ac 2 -c:a libvorbis -b:a 160k -r:a 48000 "{}"'
 }
 
 # FFMPEG options for video containers general options
@@ -570,12 +627,12 @@ OS_codec = '-c:s {}'
 OS_SRT_extraction = 'ffmpeg -stats -hide_banner -y -v error -i "{}" -map 0:{} "{}"'
 
 # FFMPEG commands
-ffmpeg_comm = 'ffmpeg -nostdin -stats -hide_banner -y {} -i "{}" {} -max_muxing_queue_size 1024 "{}"' 
-ffmpeg_join = 'ffmpeg -nostdin -safe 0 -stats -hide_banner -y {} -f concat -i "{}" -c copy -max_muxing_queue_size 1024 "{}"'
+ffmpeg_comm = '{}ffmpeg -nostdin -stats -hide_banner -y {} -i "{}" {} -max_muxing_queue_size 1024 "{}"' 
+ffmpeg_join = '{}ffmpeg -nostdin -safe 0 -stats -hide_banner -y {} -f concat -i "{}" -c copy -max_muxing_queue_size 1024 "{}"'
 
-ffprobe_video = 'ffprobe -v error -print_format csv -show_streams -select_streams v -show_entries stream=index,codec_name,width,height,bit_rate -i "{}"'
-ffprobe_audio = 'ffprobe -v error -print_format csv -show_streams -select_streams a -show_entries stream=index,codec_name:stream_tags=language -i "{}"'
-ffprobe_subs  = 'ffprobe -v error -print_format csv -show_streams -select_streams s -show_entries stream=index,codec_name:stream_tags=language -i "{}"'
+ffprobe_video = '{}ffprobe -v error -print_format csv -show_streams -select_streams v -show_entries stream=index,codec_name,width,height,bit_rate -i "{}"'
+ffprobe_audio = '{}ffprobe -v error -print_format csv -show_streams -select_streams a -show_entries stream=index,codec_name:stream_tags=language -i "{}"'
+ffprobe_subs  = '{}ffprobe -v error -print_format csv -show_streams -select_streams s -show_entries stream=index,codec_name:stream_tags=language -i "{}"'
 
 # Exit status
 exit_code = 0
@@ -730,5 +787,7 @@ if __name__ == "__main__":
     arguments.container = args.container
     arguments.resol = args.resol
     arguments.files = args.files
+    # conv_to command line tool assumes ffmpeg artifacts available in PATH
+    arguments.bin = '' 
 
     run(arguments)
