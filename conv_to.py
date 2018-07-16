@@ -14,8 +14,11 @@ import types
 
 #-------------------------------------------------------------------------------
 
-def sep():
-    print('---------------------------------------------------------------------------')
+def sep(header=''):
+    """Writes separator on stdout adding a header if requested"""
+    print('-------------------------------------------------------------------------------')
+    if header != '':
+        print(header)
 
 #-------------------------------------------------------------------------------
 
@@ -155,6 +158,8 @@ def join_input_files (files, f_out, args):
         print('file \'{}\''.format(f), file=tmp)
         print('>>> Registering file [{}] ...'.format(f))
     tmp.close()
+
+    #exec_command ('cat {}'.format(tmppath), get_stdout=True, verbose=True)
 
     # Command to join
     join_command = ffmpeg_join.format(args.bin, info[args.verbose], tmppath, f_out)
@@ -640,6 +645,10 @@ exit_code = 0
 #-------------------------------------------------------------------------------
 
 def run(args):
+    global exit_code
+
+    out_files = {}
+    exit_code = 0
 
     if len(args.join_to)==0:
         # Info
@@ -657,7 +666,7 @@ def run(args):
         for f in args.files:
             flist = get_files(f)
             files_expanded = files_expanded + flist
-    
+
         for file in files_expanded:
     
             sep()
@@ -673,6 +682,9 @@ def run(args):
                 if file_out == file_in:
                     file_out = '{}.ffmpeg.{}'.format(file_wext, args.container)
     
+                # IN/OUT files
+                out_files[file]=file_out
+
                 if args.info:
                     print('>>> File: [{}]'.format(file))
     
@@ -713,7 +725,10 @@ def run(args):
                             # Tag Video
                             file_list = []
                             file_list.append(file_out)
-                            vidtag.set_file_tag(file_list) 
+                            tag_out = vidtag.set_file_tag(file_list, main=False, bins=args.bin) 
+                            # IN/OUT files
+                            if tag_out[file_out] != '':
+                                out_files[file] = tag_out[file_out]
                     
                     else:
                         print('!!! ERROR: Processing File [{}] (exit code {})'.format(file, exit_code))
@@ -724,6 +739,7 @@ def run(args):
     
             else:
                 print('!!! ERROR: File [{}] not exists or is not readable'.format(file))
+                exit_code = 255
     
         sep()
     
@@ -733,12 +749,17 @@ def run(args):
     
         join_input_files(args.files, args.join_to, args)
     
+        for file in args.files:
+            out_files[file] = args.join_to
+
         if args.delete:
             for file in args.files:
                 if delete_file(file):
                     print('... Deleted input file [{}]'.format(file)) 
                 else: 
                     print('!!! ERROR: Deleting file [{}]'.format(file))
+
+    return exit_code, out_files
 
 #-------------------------------------------------------------------------------
 

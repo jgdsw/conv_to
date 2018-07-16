@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import sys
-import re
 import os
 import os.path
 import argparse
@@ -9,6 +8,7 @@ import subprocess
 import glob
 import locale
 import tempfile
+import re
 from pathlib import Path
 from titlecase import titlecase
 
@@ -49,29 +49,87 @@ def get_files (file_pattern='*.*', verbose=False):
 
 #-------------------------------------------------------------------------------
 
-def exec_command (cmd, get_output=True):
+def _filter_out (str_list):
+    filtered_list = []
+    for item in str_list:
+        filtered_list.append(item.strip())
+    return filtered_list
 
-    # De-construct command in list is not needed if command is going to be
-    # passed through the OS shell 
-    # cmd = [cmd]
+#-------------------------------------------------------------------------------
 
+def exec_command (cmd, get_stdout=True, get_stderr=False, file_stdin='', file_stdout='', file_stderr='', exit=False, verbose=False):
+    """Executes a given command. Returns the status completion, stdout and stderr of the command"""
+    if verbose:
+        print('exec:({})'.format(cmd))
+
+    stdin_run = None
+    stdout_run = None
+    stderr_run = None
+
+    if file_stdin != '':
+        stdin_run = open(file_stdin, 'r')
+
+    if file_stdout != '':
+        get_stdout = False
+        stdout_run = open(file_stdout,'w')
+
+    if get_stdout:
+        stdout_run=subprocess.PIPE
+
+    if file_stderr != '':
+        get_stderr = False
+        stderr_run = open(file_stderr,'w')
+
+    if get_stderr:
+        stderr_run=subprocess.PIPE
+
+    cp = subprocess.run(cmd, shell=True, stdin=stdin_run, stdout=stdout_run, stderr=stderr_run)
+
+    if file_stdin != '':
+        stdin_run.close()
+
+    if file_stdout != '':
+        stdout_run.close()
+
+    if file_stderr != '':
+        stderr_run.close()
+
+    if verbose:
+        print(cp)
+
+    # Output STDOUT stream if requested
     try:
-        if get_output:
-            cp = subprocess.check_output(cmd, shell=True)
-            status = 0
-            str_out = cp.decode(sys.stdout.encoding)
-            out = str_out.split('\n')
+        str_out = cp.stdout.decode('utf-8', 'replace')
+        out = str_out.splitlines()
+        out = _filter_out(out)
+        if len(out) != 0:
             if out[-1] == '':
                 out=out[:-1]
-        else:
-            cp = subprocess.call(cmd, shell=True)
-            status = cp
-            out = []
     except:
-        out=''
-        status=255
+        out = []
 
-    return status, out
+    # Output STDERR stream if requested
+    try:
+        str_err = cp.stderr.decode('utf-8', 'replace')
+        err = str_err.splitlines()
+        err = _filter_out(err)
+        if len(err) != 0:
+            if err[-1] == '':
+                err=err[:-1]
+    except:
+        err = []
+
+    # Output return status
+    status = cp.returncode
+
+    if verbose:
+        print('status:({})\nstdout:({}, "{}")\nstderr:({}, "{}")'.format(status, out, file_stdout, err, file_stderr))
+
+    if exit:
+        if status != 0:
+            sys.exit('exec: Error [{}] executing ["{}"]'.format(status, cmd))
+
+    return status, out, err
 
 #-------------------------------------------------------------------------------
 
@@ -84,13 +142,13 @@ def ToInt (value):
 
 #-------------------------------------------------------------------------------
 
-def get_file_tag (file):
+def get_file_tag (file, bins=''):
 
     tag=''
-    ffprobe_video = 'ffprobe -v error -print_format csv -show_streams -select_streams v -show_entries stream=index,codec_name,width,height,bit_rate -i "{}"'
+    ffprobe_video = '{}ffprobe -v error -print_format csv -show_streams -select_streams v -show_entries stream=index,codec_name,width,height,bit_rate -i "{}"'
 
-    ffprobe_args = ffprobe_video.format(file)
-    st, out = exec_command(ffprobe_args)
+    ffprobe_args = ffprobe_video.format(bins, file)
+    st, out, err = exec_command(ffprobe_args)
 
     if st == 0:
         for line in out:
@@ -112,7 +170,7 @@ def get_file_tag (file):
 
 #-------------------------------------------------------------------------------
 
-def set_file_tag (files, main=False):
+def set_file_tag (files, main=False, bins=''):
 
     # File wilcards expansion
     # Windows support !!
@@ -121,6 +179,8 @@ def set_file_tag (files, main=False):
         flist = get_files(f)
         files_expanded = files_expanded + flist
 
+    files_out = {}
+
     # for each file
     for file in files_expanded:
         
@@ -128,7 +188,7 @@ def set_file_tag (files, main=False):
         	sep()
 
         # Get file tag
-        st, tag = get_file_tag(file)
+        st, tag = get_file_tag(file, bins)
 
         if (st == 0):
 
@@ -170,6 +230,8 @@ def set_file_tag (files, main=False):
             # Show results
             print('>>> Tag File: "{}"'.format(file_in))
 
+            files_out[file] = file_out
+
             # Final rename
             if file_in == file_out:
                 print ('>>> No file renaming needed')
@@ -180,12 +242,16 @@ def set_file_tag (files, main=False):
                 	print('>>> Renamed to: "{}"'.format(file_out))
                 except OSError as err:
                     print('!!! ERROR renaming to: "{}"'.format(file_out))
+                    files_out[file] = ''
 
         else:
             print('!!! ERROR Tagging File: "{}"'.format(file))
+            files_out[file] = ''
 
     if main:
-    	sep()    
+    	sep()
+
+    return files_out    
 
 #-------------------------------------------------------------------------------
 
