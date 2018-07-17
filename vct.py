@@ -187,7 +187,7 @@ def SignalStart (sender, row):
 
 def SignalDone(sender, status):
     if status != 0:
-        wx.MessageBox('VDG Operation could not be completed:\n{}'.format(status), 'Error', wx.OK | wx.ICON_ERROR)
+        wx.MessageBox('VCT Operation could not be completed:\n{}'.format(status), 'Error', wx.OK | wx.ICON_ERROR)
 
     sender.CONVERTING=False
     sender.button_OK.Enable()
