@@ -237,9 +237,10 @@ def SignalProgress(sender, increment):
         sender.gc_files.SetCellValue(index, 3, '')
         sender.gc_files.SetCellValue(index, 4, '')        
 
-    sender.gc_files.AutoSizeColumn(2)
-    sender.gc_files.AutoSizeColumn(3)
-    sender.gc_files.AutoSizeColumn(4)
+    sender.gc_files.AutoSizeColumns()
+    #sender.gc_files.AutoSizeColumn(2)
+    #sender.gc_files.AutoSizeColumn(3)
+    #sender.gc_files.AutoSizeColumn(4)
 
 #-------------------------------------------------------------------------------
 
@@ -331,6 +332,7 @@ class MyVCT(wx.Frame):
 
         # Better for log reading ...
         self.text_ctrl_log.SetFont(wx.Font(11, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
+        self.gc_files.AutoSizeColumns()
 
         # Redirect STDOUT/STDERR
         redir=RedirectText(self.text_ctrl_log)
@@ -464,11 +466,12 @@ class MyVCT(wx.Frame):
                 self.gc_files.SetCellValue(row, 4, '')
                 self.gc_files.SetCellTextColour(row, 4, sz_color)
         dialog.Destroy()
-        self.gc_files.AutoSizeColumn(0)
-        self.gc_files.AutoSizeColumn(1)
-        self.gc_files.AutoSizeColumn(2)
-        self.gc_files.AutoSizeColumn(3)
-        self.gc_files.AutoSizeColumn(4)
+        self.gc_files.AutoSizeColumns()
+        #self.gc_files.AutoSizeColumn(0)
+        #self.gc_files.AutoSizeColumn(1)
+        #self.gc_files.AutoSizeColumn(2)
+        #self.gc_files.AutoSizeColumn(3)
+        #self.gc_files.AutoSizeColumn(4)
         event.Skip()
 
     def outputFolder(self, event):  # wxGlade: MyVCT.<event_handler>
