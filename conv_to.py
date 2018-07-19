@@ -5,6 +5,7 @@ import os
 import os.path
 import argparse
 import subprocess
+import platform
 import glob
 import locale
 import tempfile
@@ -44,7 +45,7 @@ def get_files (file_pattern='*.*', verbose=False):
 
     if len(file_list) == 0:
         file_list = [file_pattern]
-        
+
     if verbose:
         print('get_files: file_list:({})'.format(file_list))
 
@@ -86,7 +87,19 @@ def exec_command (cmd, get_stdout=True, get_stderr=False, file_stdin='', file_st
     if get_stderr:
         stderr_run=subprocess.PIPE
 
-    cp = subprocess.run(cmd, shell=True, stdin=stdin_run, stdout=stdout_run, stderr=stderr_run)
+    if platform.system() == 'Windows' and get_stdout:
+        # Do not let console window pop-up briefly
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        if stdin_run == None:
+            stdin_run = subprocess.PIPE
+        if stderr_run == None:
+            stderr_run = subprocess.STDOUT
+    else:
+        startupinfo = None
+
+    cp = subprocess.run(cmd, shell=True, stdin=stdin_run, stdout=stdout_run, stderr=stderr_run, startupinfo=startupinfo)
 
     if file_stdin != '':
         stdin_run.close()
@@ -147,11 +160,11 @@ def join_input_files (files, f_out, args):
 
     # Create temporary file
     tmppath = '.conv_to.join.{}'.format(os.getpid())
- 
+
     # Remove temporary file
     if not delete_file(tmppath):
         sys.exit('\n!!! ERROR: Removing temporary file:{}'.format(tmppath))
- 
+
     # Writing temporary file stream
     tmp = open(tmppath, 'w')
     for f in files:
@@ -187,7 +200,7 @@ def ToInt (value):
 
 def get_video_streams (file, options, args, info=False):
     global ffprobe_video, video_resolution, video_container, stream_video_quality, \
-           OV_stream, O_copy, rotate180, video_filters 
+           OV_stream, O_copy, rotate180, video_filters
 
     ffprobe_args = ffprobe_video.format(args.bin, file)
     st, out, err = exec_command(ffprobe_args, verbose=args.verbose)
@@ -218,24 +231,24 @@ def get_video_streams (file, options, args, info=False):
                     else:
                         # Manage Options
                         print('# Video[{}]: {}, {}x{} --> '.format(index, codec, width, height), end='')
-    
+
                         # Codec patch
                         if codec == 'xvid':
                             codec = 'mpeg4'
-                
+
                         # Smart resize detection
                         resize = False
                         scale_v = ''
                         if args.resol != 'input' and not header:
                             if width > video_resolution[args.resol][0]:
-                                scale_v = video_resolution[args.resol][1] 
+                                scale_v = video_resolution[args.resol][1]
                                 width = video_resolution[args.resol][0]
-                                resize = True          
-                        
+                                resize = True
+
                         # libx264 restriction about odd sizes
                         if not resize and not header:
                             if (width % 2 == 1) or (height % 2 == 1):
-                                scale_v = 'scale=trunc(iw/2)*2:trunc(ih/2)*2' 
+                                scale_v = 'scale=trunc(iw/2)*2:trunc(ih/2)*2'
                                 resize = True
 
                         # Rotate 180
@@ -250,7 +263,7 @@ def get_video_streams (file, options, args, info=False):
                             filter_sep = ','
                         else:
                             filter_sep = ''
- 
+
                         # Final video filters option
                         if resize or flip:
                             stream_filter = video_filters.format(flip_v, filter_sep, scale_v)
@@ -265,9 +278,9 @@ def get_video_streams (file, options, args, info=False):
                         if codec != video_container[args.container][0] or \
                            args.fps != 0.0 or resize or flip or args.force:
                             # Reencode streama
-                            vr = args.resol + '-' + args.container 
-                            stream = OV_stream.format(index, index, stream_video_quality[vr])  
-                            print('{}:{}, Resolution:{} (max width={} px)'.format(args.container, 
+                            vr = args.resol + '-' + args.container
+                            stream = OV_stream.format(index, index, stream_video_quality[vr])
+                            print('{}:{}, Resolution:{} (max width={} px)'.format(args.container,
                                   video_container[args.container][0], args.resol, width))
                         else:
                             # Copy stream
@@ -285,7 +298,7 @@ def get_video_streams (file, options, args, info=False):
 
 def get_audio_streams (file, options, args, info=False):
     global ffprobe_audio, stream_audio_quality, OA_stream, O_copy
-   
+
     if args.no_audio and not info:
         # Do not copy audio streams
         options.append(stream_audio_quality['none'][1])
@@ -307,7 +320,7 @@ def get_audio_streams (file, options, args, info=False):
 
                     la = lsa[1:3]
 
-                    try: 
+                    try:
                         la.append(lsa[15])
                     except:
                         la.append('und')
@@ -427,7 +440,7 @@ def get_subs_streams (file, options, args, info=False):
                         stream = not_OS_stream.format(index)
                         options.append(stream)
                         ignored=True
- 
+
                 if subs:
                     # Codec for subtitles streams (MP4)
                     options.append(OS_codec.format(subtitles[args.container]))
@@ -463,7 +476,7 @@ def convert_video_file (file, file_out, args):
     global exit_code, info, video_container, video_resolution, FPS
 
     options = []
-    
+
     if args.fps != 0.0:
         options.append(FPS.format(args.fps))
 
@@ -504,7 +517,7 @@ def get_file_info (file, args):
 
     show_file_size(file)
     st_v = get_video_streams(file, options, args, info=True)
-    st_a = get_audio_streams(file, options, args, info=True)   
+    st_a = get_audio_streams(file, options, args, info=True)
     st_s = get_subs_streams(file, options, args, info=True)
 
     if st_v != 0 or st_a != 0 or st_s != 0:
@@ -604,8 +617,8 @@ stream_audio_quality = {
 
 # FFMPEG options for subtitles
 subtitles = {
-'none': '-sn', 
-'avi':  'SRT File', # It will never be used as codec inside AVI. SRT extraction instead. 
+'none': '-sn',
+'avi':  'SRT File', # It will never be used as codec inside AVI. SRT extraction instead.
 'mp4':  'mov_text',
 'mkv':  'subrip'
 }
@@ -632,7 +645,7 @@ OS_codec = '-c:s {}'
 OS_SRT_extraction = 'ffmpeg -stats -hide_banner -y -v error -i "{}" -map 0:{} "{}"'
 
 # FFMPEG commands
-ffmpeg_comm = '{}ffmpeg -nostdin -stats -hide_banner -y {} -i "{}" {} -max_muxing_queue_size 1024 "{}"' 
+ffmpeg_comm = '{}ffmpeg -nostdin -stats -hide_banner -y {} -i "{}" {} -max_muxing_queue_size 1024 "{}"'
 ffmpeg_join = '{}ffmpeg -nostdin -safe 0 -stats -hide_banner -y {} -f concat -i "{}" -c copy -max_muxing_queue_size 1024 "{}"'
 
 ffprobe_video = '{}ffprobe -v error -print_format csv -show_streams -select_streams v -show_entries stream=index,codec_name,width,height,bit_rate -i "{}"'
@@ -659,7 +672,7 @@ def run(args):
             if args.verbose:
                 print('*** [Resolution={}, FPS={}, Force_encode={}]'.format(args.resol, args.fps, args.force))
             print('*** [Delete Input Files={}]'.format(args.delete))
-    
+
         # File wilcards expansion
         # Windows support !!
         files_expanded=[]
@@ -668,12 +681,12 @@ def run(args):
             files_expanded = files_expanded + flist
 
         for file in files_expanded:
-    
+
             sep()
-    
+
             # Test file existence
             if os.path.isfile(file) and os.access(file, os.R_OK):
-    
+
                 # Output filename
                 f_path = Path(file)
                 file_in = str(f_path)
@@ -681,21 +694,21 @@ def run(args):
                 file_out = '{}.{}'.format(file_wext, args.container)
                 if file_out == file_in:
                     file_out = '{}.ffmpeg.{}'.format(file_wext, args.container)
-    
+
                 # IN/OUT files
                 out_files[file]=file_out
 
                 if args.info:
                     print('>>> File: [{}]'.format(file))
-    
+
                     get_file_info(file, args)
-    
+
                     if exit_code != 0:
                         print('!!! ERROR: Reading File [{}] (exit code {})'.format(file, exit_code))
-    
+
                 else:
                     print('>>> Converting file [{}]\n                to: [{}]...'.format(file_in,file_out))
-    
+
                     # The file exists
                     if video[args.container]:
                         # Video conversion
@@ -703,60 +716,60 @@ def run(args):
                     else:
                         # Audio conversion
                         convert_audio_file(file, file_out, args)
-        
+
                     if exit_code == 0:
                         print('>>> Converted file [{}]\n               to: [{}]'.format(file_in,file_out))
-    
+
                         # Final file streams
                         get_file_info(file_out, args)
-    
+
                         if exit_code != 0:
                             print('!!! ERROR: Reading File [{}] (exit code {})'.format(file_out, exit_code))
-    
+
                         # Delete only if verification is sucessfull!
                         if args.delete and exit_code == 0:
                             if delete_file(file):
                                 print('>>> Deleted input file [{}]'.format(file))
                             else:
                                 print('!!! ERROR: Deleting file [{}]'.format(file))
-    
+
                         # Check if tagging applies and was requested
                         if video[args.container] and args.tag and exit_code == 0:
                             # Tag Video
                             file_list = []
                             file_list.append(file_out)
-                            tag_out = vidtag.set_file_tag(file_list, main=False, bins=args.bin) 
+                            tag_out = vidtag.set_file_tag(file_list, main=False, bins=args.bin)
                             # IN/OUT files
                             if tag_out[file_out] != '':
                                 out_files[file] = tag_out[file_out]
-                    
+
                     else:
                         print('!!! ERROR: Processing File [{}] (exit code {})'.format(file, exit_code))
                         delete_file(file_out)
                         if exit_code == 9999:
                             print('')
                             sys.exit ('*** Stopped ***')
-    
+
             else:
                 print('!!! ERROR: File [{}] not exists or is not readable'.format(file))
                 exit_code = 255
-    
+
         sep()
-    
+
     else:
         # Info
         print('>>> Joining input file to: {}'.format(args.join_to))
-    
+
         join_input_files(args.files, args.join_to, args)
-    
+
         for file in args.files:
             out_files[file] = args.join_to
 
         if args.delete:
             for file in args.files:
                 if delete_file(file):
-                    print('... Deleted input file [{}]'.format(file)) 
-                else: 
+                    print('... Deleted input file [{}]'.format(file))
+                else:
                     print('!!! ERROR: Deleting file [{}]'.format(file))
 
     return exit_code, out_files
@@ -777,22 +790,22 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--tag', help='tag video files width vidtag', action='store_true')
     parser.add_argument('-f', '--fps', metavar='#FPS', help='output FPS value', default=0.0, type=float)
     parser.add_argument('-j', '--join_to', metavar='<JOINED_FILE>', help='Joined output file (same codec expected in input files)', default='')
-    parser.add_argument('-c', '--container', metavar='<mp4|avi|mkv|m4a|mp3|ogg>', 
-                        help='output container/codec file format (not used in join operations', 
+    parser.add_argument('-c', '--container', metavar='<mp4|avi|mkv|m4a|mp3|ogg>',
+                        help='output container/codec file format (not used in join operations',
                         choices=['mp4', 'avi', 'mkv', 'm4a', 'mp3', 'ogg'], default='mp4')
-    parser.add_argument('-r', '--resol', metavar='<input|std|VCD|DVD|HD|FHD|UHD|DCI>', 
+    parser.add_argument('-r', '--resol', metavar='<input|std|VCD|DVD|HD|FHD|UHD|DCI>',
                         help='standard resolution to use (not used in join operations). input=same as input, std=max width 542px, VCD=max width 352px, DVD=max width 720px, HD=max width 1280px, FHD=max width 1920px, UHD=max width 3840px, DCI=max width 4096px',
-                        choices=['input', 'std', 'VCD', 'DVD', 'HD', 'FHD', 'UHD', 'DCI'], default='input')  
+                        choices=['input', 'std', 'VCD', 'DVD', 'HD', 'FHD', 'UHD', 'DCI'], default='input')
     parser.add_argument('files', metavar='<FILE>', nargs='+', help='file/s to process')
-    
+
     # Always show Help with no params
     if len(sys.argv) < 2:
         parser.print_help()
         sys.exit(1)
-    
+
     # Parse arguments
     args = parser.parse_args()
-    
+
     # Create argument object
     arguments = types.SimpleNamespace()
     arguments.verbose = args.verbose
@@ -809,6 +822,6 @@ if __name__ == "__main__":
     arguments.resol = args.resol
     arguments.files = args.files
     # conv_to command line tool assumes ffmpeg artifacts available in PATH
-    arguments.bin = '' 
+    arguments.bin = ''
 
     run(arguments)
