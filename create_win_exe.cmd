@@ -1,1 +1,1 @@
-pyinstaller --onefile --console --add-binary bin\ffmpeg.exe;bin --add-binary bin\ffprobe.exe;bin --add-binary bin\ffplay.exe;bin --icon vct.ico vct.py
+pyinstaller --onefile --windowed --add-binary bin\ffmpeg.exe;bin --add-binary bin\ffprobe.exe;bin --add-binary bin\ffplay.exe;bin --icon vct.ico vct.py
