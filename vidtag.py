@@ -5,6 +5,7 @@ import os
 import os.path
 import argparse
 import subprocess
+import platform
 import glob
 import locale
 import tempfile
@@ -83,7 +84,26 @@ def exec_command (cmd, get_stdout=True, get_stderr=False, file_stdin='', file_st
     if get_stderr:
         stderr_run=subprocess.PIPE
 
-    cp = subprocess.run(cmd, shell=True, stdin=stdin_run, stdout=stdout_run, stderr=stderr_run)
+    startupinfo = None
+    if platform.system() == 'Windows' and not sys.stdout.isatty():
+        # Do not let console window pop-up briefly
+        # Avoid "WinError 6, Handle is invalid" on Windows
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        if get_stdout == True:
+            if stdin_run == None:
+                stdin_run = subprocess.PIPE
+            if stderr_run == None:
+                stderr_run = subprocess.STDOUT
+        else:
+            stdout_run = subprocess.DEVNULL
+            if stdin_run == None:
+                stdin_run = subprocess.DEVNULL
+            if stderr_run == None:
+                stderr_run = subprocess.STDOUT
+
+    cp = subprocess.run(cmd, shell=True, stdin=stdin_run, stdout=stdout_run, stderr=stderr_run, startupinfo=startupinfo)
 
     if file_stdin != '':
         stdin_run.close()
@@ -164,7 +184,7 @@ def get_file_tag (file, bins=''):
 
                 # Only the first one is returned
                 tag = '[{}x{}-{}]'.format(width, height, codec)
-                return st, tag 
+                return st, tag
 
     return st, tag
 
@@ -183,7 +203,7 @@ def set_file_tag (files, main=False, bins=''):
 
     # for each file
     for file in files_expanded:
-        
+
         if main:
         	sep()
 
@@ -251,7 +271,7 @@ def set_file_tag (files, main=False, bins=''):
     if main:
     	sep()
 
-    return files_out    
+    return files_out
 
 #-------------------------------------------------------------------------------
 

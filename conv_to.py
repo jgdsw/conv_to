@@ -87,17 +87,24 @@ def exec_command (cmd, get_stdout=True, get_stderr=False, file_stdin='', file_st
     if get_stderr:
         stderr_run=subprocess.PIPE
 
-    if platform.system() == 'Windows' and get_stdout:
+    startupinfo = None
+    if platform.system() == 'Windows' and not sys.stdout.isatty():
         # Do not let console window pop-up briefly
+        # Avoid "WinError 6, Handle is invalid" on Windows
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startupinfo.wShowWindow = subprocess.SW_HIDE
-        if stdin_run == None:
-            stdin_run = subprocess.PIPE
-        if stderr_run == None:
-            stderr_run = subprocess.STDOUT
-    else:
-        startupinfo = None
+        if get_stdout == True:
+            if stdin_run == None:
+                stdin_run = subprocess.PIPE
+            if stderr_run == None:
+                stderr_run = subprocess.STDOUT
+        else:
+            stdout_run = subprocess.DEVNULL
+            if stdin_run == None:
+                stdin_run = subprocess.DEVNULL
+            if stderr_run == None:
+                stderr_run = subprocess.STDOUT
 
     cp = subprocess.run(cmd, shell=True, stdin=stdin_run, stdout=stdout_run, stderr=stderr_run, startupinfo=startupinfo)
 

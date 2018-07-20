@@ -102,14 +102,14 @@ def convertFiles (params, sender):
             files_join.append(file)
             files_vct.append((index, file))
             wx.CallAfter(dispatcher.send, signal=VCT_INIT, sender=sender, row=index)
-       
+
         status, out_filenames = joinToFile (params, files_join)
 
         for index, file in files_vct:
             if status == 0:
-                filename = out_filenames[file] 
+                filename = out_filenames[file]
             else:
-                filename = ''   
+                filename = ''
             wx.CallAfter(dispatcher.send, signal=VCT_PROG, sender=sender, increment=(index, filename, params.delete, status))
 
     print(">>> vct: JOB Completed!\n")
@@ -123,11 +123,11 @@ def vct_run(params, sender):
 
     except SystemExit as exit:
         if exit.code != 0:
-            print('!!! THR Run-Time Error: [{}]'.format(exit.code))
+            print('!!! THR-Conv Run-Time Error: [{}]'.format(exit.code))
             exit_status = exit.code
 
     except Exception as exc:
-        print('!!! THR Run-Time Exception: [{}]'.format(exc))
+        print('!!! THR-Conv Run-Time Exception: [{}]'.format(exc))
         exit_status = exc
 
     # Send exit status (wx Publish/Subscribe)
@@ -149,16 +149,16 @@ def vct_run_thread (params, sender):
 def vct_play(file, base):
     try:
         cmd = '{}ffplay -hide_banner "{}"'.format(base, file)
-        conv_to.exec_command(cmd, file_stdout=os.devnull, file_stderr=os.devnull)
+        conv_to.exec_command(cmd)
         exit_status = 0
 
     except SystemExit as exit:
         if exit.code != 0:
-            print('!!! THR Run-Time Error: [{}]'.format(exit.code))
+            print('!!! THR-Play Run-Time Error: [{}]'.format(exit.code))
             exit_status = exit.code
 
     except Exception as exc:
-        print('!!! THR Run-Time Exception: [{}]'.format(exc))
+        print('!!! THR-Play Run-Time Exception: [{}]'.format(exc))
         exit_status = exc
 
 #-------------------------------------------------------------------------------
@@ -214,14 +214,14 @@ def SignalProgress(sender, increment):
         sender.gc_files.SetCellTextColour(index, 2, wx.WHITE)
         sender.gc_files.SetCellBackgroundColour(index, 2, wx.RED)
 
-    else:    
+    else:
         if delete:
             done = ST_DD
             del_color = (0x6d, 0x6e, 0x61)
             sender.gc_files.SetCellTextColour(index, 0, del_color)
             sender.gc_files.SetCellTextColour(index, 2, wx.BLACK)
             sender.gc_files.SetCellBackgroundColour(index, 2, wx.GREEN)
-    
+
         else:
             done = ST_DN
             sender.gc_files.SetCellTextColour(index, 0, wx.BLACK)
@@ -235,7 +235,7 @@ def SignalProgress(sender, increment):
         sender.gc_files.SetCellValue(index, 4, '{:.2f} MB'.format(conv_to.show_file_size(file, verbose=False)))
     else:
         sender.gc_files.SetCellValue(index, 3, '')
-        sender.gc_files.SetCellValue(index, 4, '')        
+        sender.gc_files.SetCellValue(index, 4, '')
 
     sender.gc_files.AutoSizeColumns()
     #sender.gc_files.AutoSizeColumn(2)
@@ -263,7 +263,7 @@ def ShowFileInfo (file, cmd_bin):
     arguments.bin = cmd_bin
     conv_to.run(arguments)
 
-#-------------------------------------------------------------------------------          
+#-------------------------------------------------------------------------------
 
 def ToFloat(value):
     try:
@@ -280,6 +280,15 @@ class RedirectText(object):
     def write(self,string):
         wx.CallAfter(self.out.WriteText, string)
 
+    def flush(self):
+        pass
+
+    def isatty(self):
+        return False
+
+    def close(self):
+        pass
+
 #-------------------------------------------------------------------------------
 
 class MyVCT(wx.Frame):
@@ -288,7 +297,7 @@ class MyVCT(wx.Frame):
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
         self.SetSize((800, 700))
-        
+
         # Menu Bar
         self.VCT_menubar = wx.MenuBar()
         self.SetMenuBar(self.VCT_menubar)
@@ -622,7 +631,7 @@ class MyVCT(wx.Frame):
             if len(file)!=0:
                 if col!=0 or st != ST_DD:
                     dlg = wx.MessageDialog(None, 'Do you want to play file:\n"{}"?'.format(file),'VCT Player',wx.YES_NO | wx.ICON_QUESTION)
-                    result = dlg.ShowModal()       
+                    result = dlg.ShowModal()
                     if result == wx.ID_YES:
                         status = vct_run_player(file=file, base=self.CMDROOT)
                         if status != 0:
