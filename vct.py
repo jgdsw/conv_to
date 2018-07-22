@@ -149,7 +149,9 @@ def vct_run_thread (params, sender):
 def vct_play(file, base):
     try:
         cmd = '{}ffplay -hide_banner "{}"'.format(base, file)
-        conv_to.exec_command(cmd)
+        print('>>> Playing file "{}"...'.format(file))
+        st, out, err = conv_to.exec_command(cmd, get_stdout=False, get_stderr=False)
+        #print('>>> File "{}" finished play [{}, {}, {}]'.format(file, st, out, err))
         exit_status = 0
 
     except SystemExit as exit:
