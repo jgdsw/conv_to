@@ -29,7 +29,10 @@ VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
+VCT_TITLE = 'Video Conversion Tool [VCT] v2.0'
+
 ST_QU = 'On Queue'
+ST_JB = 'On JOB'
 ST_CO = 'Converting...'
 ST_DN = 'Done'
 ST_DD = 'Done/Deleted'
@@ -200,16 +203,16 @@ def SignalDone(sender, status):
 #-------------------------------------------------------------------------------
 
 def SignalProgress(sender, increment):
-    sender.done = sender.done+1
-    perc=(sender.done/sender.total)*100
-
-    sender.label_progress.SetLabel('{:.0f}%'.format(perc))
-    sender.gauge.SetValue(perc)
-
     index = increment[0]
     file = increment[1]
     delete = increment[2]
     status = increment[3]
+
+    sender.done = sender.done + cellOriginalSize(sender.gc_files.GetCellValue(index, 1))
+    perc=(sender.done/sender.total)*100
+
+    sender.label_progress.SetLabel('{:.0f}%'.format(perc))
+    sender.gauge.SetValue(perc)   
 
     if status != 0:
         done = ST_ER
@@ -293,13 +296,19 @@ class RedirectText(object):
 
 #-------------------------------------------------------------------------------
 
+def cellOriginalSize(str_value):
+    st = str_value.split()
+    return (ToFloat(st[0]))
+
+#-------------------------------------------------------------------------------
+
 class MyVCT(wx.Frame):
     def __init__(self, *args, **kwds):
         # begin wxGlade: MyVCT.__init__
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
         self.SetSize((800, 700))
-
+        
         # Menu Bar
         self.VCT_menubar = wx.MenuBar()
         self.SetMenuBar(self.VCT_menubar)
@@ -335,8 +344,10 @@ class MyVCT(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.convertFiles, self.button_OK)
         # end wxGlade
 
-        self.done =  0
-        self.total = 0
+        self.SetTitle(VCT_TITLE)
+        
+        self.done =  0.0
+        self.total = 0.0
         self.label_progress.SetLabel('')
         self.gauge.SetValue(0)
         self.CONVERTING = False
@@ -361,7 +372,7 @@ class MyVCT(wx.Frame):
         # begin wxGlade: MyVCT.__set_properties
         self.SetTitle("VCT")
         self.gc_files.CreateGrid(0, 5)
-        self.gc_files.SetRowLabelSize(30)
+        self.gc_files.SetRowLabelSize(20)
         self.gc_files.SetColLabelSize(20)
         self.gc_files.EnableEditing(0)
         self.gc_files.EnableDragRowSize(0)
@@ -396,7 +407,7 @@ class MyVCT(wx.Frame):
     def __do_layout(self):
         # begin wxGlade: MyVCT.__do_layout
         self.sizer_app = wx.BoxSizer(wx.VERTICAL)
-        self.sizer_1 = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, "Details/Log"), wx.HORIZONTAL)
+        sizer_1 = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer_buttons = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer_join = wx.BoxSizer(wx.HORIZONTAL)
         self.sizer_options_cb = wx.BoxSizer(wx.HORIZONTAL)
@@ -433,8 +444,8 @@ class MyVCT(wx.Frame):
         self.sizer_buttons.Add(self.gauge, 9, wx.ALL | wx.EXPAND, 5)
         self.sizer_buttons.Add(self.button_OK, 0, wx.ALIGN_RIGHT | wx.ALL | wx.EXPAND, 5)
         self.sizer_app.Add(self.sizer_buttons, 0, wx.ALL | wx.EXPAND, 4)
-        self.sizer_1.Add(self.text_ctrl_log, 10, wx.ALL | wx.EXPAND, 0)
-        self.sizer_app.Add(self.sizer_1, 3, wx.EXPAND, 0)
+        sizer_1.Add(self.text_ctrl_log, 10, wx.ALL | wx.EXPAND, 5)
+        self.sizer_app.Add(sizer_1, 3, wx.ALL | wx.EXPAND, 4)
         self.SetSizer(self.sizer_app)
         self.Layout()
         # end wxGlade
@@ -455,9 +466,9 @@ class MyVCT(wx.Frame):
         event.Skip()
 
     def selectFiles(self, event):  # wxGlade: MyVCT.<event_handler>
-        self.text_ctrl_log.SetValue('')
-        self.gauge.SetValue(0)
-        self.label_progress.SetLabel('')
+        #self.text_ctrl_log.SetValue('')
+        #self.gauge.SetValue(0)
+        #self.label_progress.SetLabel('')
 
         dialog = wx.FileDialog(None, "Choose audio/video file/s:", style=wx.FD_OPEN|wx.FD_MULTIPLE|wx.FD_FILE_MUST_EXIST)
         if dialog.ShowModal() == wx.ID_OK:
@@ -527,17 +538,18 @@ class MyVCT(wx.Frame):
 
     def convertFiles(self, event):  # wxGlade: MyVCT.<event_handler>
         files_list = []
-        files_on_queue = 0
+        MB_on_queue = 0.0
         for ind in range(0,self.gc_files.GetNumberRows()):
             status = self.gc_files.GetCellValue(ind, 2)
             if status == ST_QU:
                 file = self.gc_files.GetCellValue(ind, 0)
                 item = (ind, file)
                 files_list.append(item)
-                files_on_queue = files_on_queue + 1
+                MB_on_queue = MB_on_queue + cellOriginalSize(self.gc_files.GetCellValue(ind, 1))
+                self.gc_files.SetCellValue(ind, 2, ST_JB)
 
-        self.total = files_on_queue
-        self.done = 0
+        self.total = MB_on_queue
+        self.done = 0.0
 
         # Create argument object
         arguments = types.SimpleNamespace()
@@ -571,7 +583,7 @@ class MyVCT(wx.Frame):
                 self.button_OK.Disable()
                 self.button_join_to.Disable()
                 self.button_3.Disable()
-                self.button_4.Disable()
+                #self.button_4.Disable()
         else:
             self.text_ctrl_log.SetValue('')
             self.gauge.SetValue(0)
