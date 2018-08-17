@@ -458,11 +458,10 @@ class MyVCT(wx.Frame):
         self.text_ctrl_log.SetValue('')
         self.gauge.SetValue(0)
         self.label_progress.SetLabel('')
-
         rows = self.gc_files.GetNumberRows()
         if rows > 0:
             self.gc_files.DeleteRows(0,rows)
-
+        self.gc_files.AutoSizeColumns()
         event.Skip()
 
     def selectFiles(self, event):  # wxGlade: MyVCT.<event_handler>
