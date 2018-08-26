@@ -1,1 +1,1 @@
-rm -rf __pycache__ build dist *.spec *.dmg
+rm -rf __pycache__ build dist *.spec VCT*.dmg
