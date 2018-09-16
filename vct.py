@@ -345,6 +345,7 @@ class MyVCT(wx.Frame):
         # end wxGlade
 
         self.SetTitle(VCT_TITLE)
+        self.SetBackgroundColour(wx.Colour(234, 234, 234))
         
         self.done =  0.0
         self.total = 0.0
