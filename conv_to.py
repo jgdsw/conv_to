@@ -12,6 +12,8 @@ import tempfile
 import vidtag
 from pathlib import Path
 import types
+from cmdscript import ExtendedTimer
+import datetime
 
 #-------------------------------------------------------------------------------
 
@@ -181,9 +183,15 @@ def join_input_files (files, f_out, args):
 
     #exec_command ('cat {}'.format(tmppath), get_stdout=True, verbose=True)
 
+    T = ExtendedTimer(5, 0, False, timerShowOutputFileSize, f_out)
+    T.start()
+
     # Command to join
     join_command = ffmpeg_join.format(args.bin, info[args.verbose], tmppath, f_out)
     st, out, err = exec_command(join_command, get_stdout=False, verbose=args.verbose)
+
+    T.cancel()
+    del T
 
     # Remove temporary file
     if not delete_file(tmppath):
@@ -460,6 +468,13 @@ def get_subs_streams (file, options, args, info=False):
 
 #-------------------------------------------------------------------------------
 
+def timerShowOutputFileSize (file_out):
+    date = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
+    size = show_file_size(file_out, verbose=False)
+    print ('{}: [{}] -> {:.2f} MB ...          '.format(date, file_out, size))
+
+#-------------------------------------------------------------------------------
+
 def show_file_size (file, verbose=True):
     f = Path(file)
     try:
@@ -504,10 +519,16 @@ def convert_video_file (file, file_out, args):
             options_string = options_string + opt + ' '
         options_string = options_string.strip()
 
+        T = ExtendedTimer(5, 0, False, timerShowOutputFileSize, file_out)
+        T.start()
+
         # Final command
         comm = ffmpeg_comm.format(args.bin, info[args.verbose], file, options_string, file_out)
         st, out, err = exec_command(comm, get_stdout=False, verbose=args.verbose)
         exit_code = st
+
+        T.cancel()
+        del T
 
     else:
         # Error obtaining streams data
@@ -536,9 +557,15 @@ def get_file_info (file, args):
 def convert_audio_file (file, file_out, args):
     global audio_container, info, exit_code
 
+    T = ExtendedTimer(5, 0, False, timerShowOutputFileSize, file_out)
+    T.start()
+
     audio_command = audio_container[args.container].format(args.bin, info[args.verbose], file, file_out)
     st, out, err = exec_command(audio_command, get_stdout=False, verbose=args.verbose)
     exit_code = st
+
+    T.cancel()
+    del T
 
 #-------------------------------------------------------------------------------
 
@@ -786,7 +813,7 @@ def run(args):
 if __name__ == "__main__":
 
     # Get command line
-    parser = argparse.ArgumentParser(prog='conv_to', description='v2.22: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+    parser = argparse.ArgumentParser(prog='conv_to', description='v2.23: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
     parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
     parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
     parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')

@@ -29,7 +29,7 @@ VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
-VCT_TITLE = 'Video Conversion Tool [VCT] v2.1'
+VCT_TITLE = 'Video Conversion Tool [VCT] v2.2'
 
 ST_QU = 'On Queue'
 ST_JB = 'On JOB'
@@ -238,6 +238,7 @@ def SignalProgress(sender, increment):
     if status == 0:
         sender.gc_files.SetCellValue(index, 3, file)
         sender.gc_files.SetCellValue(index, 4, '{:.2f} MB'.format(conv_to.show_file_size(file, verbose=False)))
+        sender.gc_files.SetCellAlignment(index, 4, wx.ALIGN_RIGHT, wx.ALIGN_CENTRE)
     else:
         sender.gc_files.SetCellValue(index, 3, '')
         sender.gc_files.SetCellValue(index, 4, '')
@@ -480,6 +481,7 @@ class MyVCT(wx.Frame):
                 self.gc_files.SetCellValue(row, 1, '{:.2f} MB'.format(conv_to.show_file_size(f, verbose=False)))
                 sz_color = (0x6d, 0x6e, 0x61)
                 self.gc_files.SetCellTextColour(row, 1, sz_color)
+                self.gc_files.SetCellAlignment(row, 1, wx.ALIGN_RIGHT, wx.ALIGN_CENTRE)
                 self.gc_files.SetCellValue(row, 2, ST_QU)
                 #bg_color = wx.SystemSettings.GetColour(wx.SYS_COLOUR_BACKGROUND)
                 self.gc_files.SetCellBackgroundColour(row, 2, wx.BLUE)
