@@ -347,6 +347,7 @@ class MyVCT(wx.Frame):
 
         self.SetTitle(VCT_TITLE)
         self.SetBackgroundColour(wx.Colour(234, 234, 234))
+        self.text_ctrl_log.SetBackgroundColour(wx.Colour(245, 245, 245))
         
         self.done =  0.0
         self.total = 0.0
