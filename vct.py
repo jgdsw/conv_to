@@ -16,10 +16,12 @@ import wx.grid
 import os
 import sys
 import time
+import datetime
 import threading as thr
 from pydispatch import dispatcher
 import types
 import conv_to
+from cmdscript import SThread
 
 #-------------------------------------------------------------------------------
 
@@ -29,7 +31,7 @@ VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
-VCT_TITLE = 'Video Conversion Tool [VCT] v2.2'
+VCT_TITLE = 'Video Conversion Tool [VCT] v3.0'
 
 ST_QU = 'On Queue'
 ST_JB = 'On JOB'
@@ -77,6 +79,16 @@ def joinToFile (params, files):
     #print (status, out_files)
     return status, out_files
 
+
+#-------------------------------------------------------------------------------
+
+def fmt_deltatime (tdelta):
+    total_seconds = (tdelta.days*86400)+(tdelta.seconds)
+    hours, rem = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(rem, 60)
+    str_delta = '{:02d}:{:02d}:{:02d}.{:03d}'.format(hours, minutes, seconds, tdelta.microseconds//1000)
+    return str_delta
+
 #-------------------------------------------------------------------------------
 
 def convertFiles (params, sender):
@@ -87,15 +99,20 @@ def convertFiles (params, sender):
         # File to file coversion
         for index, file in params.files:
             wx.CallAfter(dispatcher.send, signal=VCT_INIT, sender=sender, row=index)
+   
+            start_time = datetime.datetime.now()
 
             status, out_filenames = convertFile(params, file)
+
+            elapsed_time = datetime.datetime.now() - start_time
+            elapsed = fmt_deltatime(elapsed_time)
 
             if status == 0:
                 filename = out_filenames[file]
             else:
                 filename = ''
 
-            wx.CallAfter(dispatcher.send, signal=VCT_PROG, sender=sender, increment=(index, filename, params.delete, status))
+            wx.CallAfter(dispatcher.send, signal=VCT_PROG, sender=sender, increment=(index, filename, params.delete, status, elapsed))
     else:
         # Join of different files
         files_join = []
@@ -124,10 +141,13 @@ def vct_run(params, sender):
         convertFiles(params, sender)
         exit_status = 0
 
-    except SystemExit as exit:
-        if exit.code != 0:
-            print('!!! THR-Conv Run-Time Error: [{}]'.format(exit.code))
-            exit_status = exit.code
+    except KeyboardInterrupt:
+        print('!!! THR-Conv Interrupted')
+        exit_status = 0
+
+    except SystemExit:
+        print('!!! THR-Conv SystemExit')
+        exit_status = 0
 
     except Exception as exc:
         print('!!! THR-Conv Run-Time Exception: [{}]'.format(exc))
@@ -140,38 +160,9 @@ def vct_run(params, sender):
 
 def vct_run_thread (params, sender):
     try:
-        thr_vct_script = thr.Thread(target=vct_run,args=(params, sender))
+        thr_vct_script = SThread(target=vct_run,args=(params, sender), daemon=True)
         thr_vct_script.start()
-        return 0
-    except Exception as exc:
-        print('!!! Run-Time Exception: [{}]'.format(exc))
-        return(exc)
-
-#-------------------------------------------------------------------------------
-
-def vct_play(file, base):
-    try:
-        cmd = '{}ffplay -hide_banner "{}"'.format(base, file)
-        print('>>> Playing file "{}"...'.format(file))
-        st, out, err = conv_to.exec_command(cmd, get_stdout=False, get_stderr=False)
-        #print('>>> File "{}" finished play [{}, {}, {}]'.format(file, st, out, err))
-        exit_status = 0
-
-    except SystemExit as exit:
-        if exit.code != 0:
-            print('!!! THR-Play Run-Time Error: [{}]'.format(exit.code))
-            exit_status = exit.code
-
-    except Exception as exc:
-        print('!!! THR-Play Run-Time Exception: [{}]'.format(exc))
-        exit_status = exc
-
-#-------------------------------------------------------------------------------
-
-def vct_run_player (file, base):
-    try:
-        thr_vct_script = thr.Thread(target=vct_play,args=(file, base))
-        thr_vct_script.start()
+        sender.thrJOB = thr_vct_script
         return 0
     except Exception as exc:
         print('!!! Run-Time Exception: [{}]'.format(exc))
@@ -180,73 +171,80 @@ def vct_run_player (file, base):
 #-------------------------------------------------------------------------------
 
 def SignalStart (sender, row):
-    sender.gc_files.SetCellValue(row, 2, ST_CO)
-    sender.gc_files.SetCellTextColour(row, 2, wx.YELLOW)
-    sender.gc_files.SetCellBackgroundColour(row, 2, wx.BLACK)
-
-    sender.gc_files.AutoSizeColumn(2)
-    sender.gc_files.AutoSizeColumn(3)
-    sender.gc_files.AutoSizeColumn(4)
+    if sender.CONVERTING:    
+        sender.gc_files.SetCellValue(row, 2, ST_CO)
+        sender.gc_files.SetCellTextColour(row, 2, wx.YELLOW)
+        sender.gc_files.SetCellBackgroundColour(row, 2, wx.BLACK)
+    
+        #sender.gc_files.AutoSizeColumn(2)
+        #sender.gc_files.AutoSizeColumn(3)
+        #sender.gc_files.AutoSizeColumn(4)
 
 #-------------------------------------------------------------------------------
 
 def SignalDone(sender, status):
-    if status != 0:
-        wx.MessageBox('VCT Operation could not be completed:\n{}'.format(status), 'Error', wx.OK | wx.ICON_ERROR)
+    if sender.CONVERTING:
+        if status != 0:
+           wx.MessageBox('VCT Operation could not be completed:\n{}'.format(status), 'Error', wx.OK | wx.ICON_ERROR)
 
-    sender.CONVERTING=False
-    sender.button_OK.Enable()
-    sender.button_join_to.Enable()
-    sender.button_3.Enable()
-    sender.button_4.Enable()
+        sender.CONVERTING=False
+        sender.button_OK.Enable()
+        sender.button_join_to.Enable()
+        sender.button_3.Enable()
+        sender.button_4.Enable()
 
 #-------------------------------------------------------------------------------
 
 def SignalProgress(sender, increment):
-    index = increment[0]
-    file = increment[1]
-    delete = increment[2]
-    status = increment[3]
-
-    sender.done = sender.done + cellOriginalSize(sender.gc_files.GetCellValue(index, 1))
-    perc=(sender.done/sender.total)*100
-
-    sender.label_progress.SetLabel('{:.0f}%'.format(perc))
-    sender.gauge.SetValue(perc)   
-
-    if status != 0:
-        done = ST_ER
-        sender.gc_files.SetCellTextColour(index, 2, wx.WHITE)
-        sender.gc_files.SetCellBackgroundColour(index, 2, wx.RED)
-
-    else:
-        if delete:
-            done = ST_DD
-            del_color = (0x6d, 0x6e, 0x61)
-            sender.gc_files.SetCellTextColour(index, 0, del_color)
-            sender.gc_files.SetCellTextColour(index, 2, wx.BLACK)
-            sender.gc_files.SetCellBackgroundColour(index, 2, wx.GREEN)
-
+    if sender.CONVERTING:
+        index = increment[0]
+        file = increment[1]
+        delete = increment[2]
+        status = increment[3]
+        elapsed = increment[4]
+    
+        sender.done = sender.done + cellOriginalSize(sender.gc_files.GetCellValue(index, 1))
+        perc=(sender.done/sender.total)*100
+    
+        sender.label_progress.SetLabel('{:.0f}%'.format(perc))
+        sender.gauge.SetValue(perc)   
+    
+        if status != 0:
+            done = ST_ER
+            sender.gc_files.SetCellTextColour(index, 2, wx.WHITE)
+            sender.gc_files.SetCellBackgroundColour(index, 2, wx.RED)
+    
         else:
-            done = ST_DN
-            sender.gc_files.SetCellTextColour(index, 0, wx.BLACK)
-            sender.gc_files.SetCellTextColour(index, 2, wx.BLACK)
-            sender.gc_files.SetCellBackgroundColour(index, 2, wx.GREEN)
-
-    sender.gc_files.SetCellValue(index, 2, done)
-
-    if status == 0:
-        sender.gc_files.SetCellValue(index, 3, file)
-        sender.gc_files.SetCellValue(index, 4, '{:.2f} MB'.format(conv_to.show_file_size(file, verbose=False)))
-        sender.gc_files.SetCellAlignment(index, 4, wx.ALIGN_RIGHT, wx.ALIGN_CENTRE)
-    else:
-        sender.gc_files.SetCellValue(index, 3, '')
-        sender.gc_files.SetCellValue(index, 4, '')
-
-    sender.gc_files.AutoSizeColumns()
-    #sender.gc_files.AutoSizeColumn(2)
-    #sender.gc_files.AutoSizeColumn(3)
-    #sender.gc_files.AutoSizeColumn(4)
+            if delete:
+                done = ST_DD
+                del_color = (0x6d, 0x6e, 0x61)
+                sender.gc_files.SetCellTextColour(index, 0, del_color)
+                sender.gc_files.SetCellTextColour(index, 2, wx.BLACK)
+                sender.gc_files.SetCellBackgroundColour(index, 2, wx.GREEN)
+    
+            else:
+                done = ST_DN
+                sender.gc_files.SetCellTextColour(index, 0, wx.BLACK)
+                sender.gc_files.SetCellTextColour(index, 2, wx.BLACK)
+                sender.gc_files.SetCellBackgroundColour(index, 2, wx.GREEN)
+    
+        sender.gc_files.SetCellValue(index, 2, done)
+    
+        if status == 0:
+            sender.gc_files.SetCellValue(index, 3, file)
+            sender.gc_files.SetCellValue(index, 4, '{:.2f} MB'.format(conv_to.show_file_size(file, verbose=False)))
+            sender.gc_files.SetCellAlignment(index, 4, wx.ALIGN_RIGHT, wx.ALIGN_CENTRE)
+            sender.gc_files.SetCellValue(index, 5, elapsed)
+            sender.gc_files.SetCellAlignment(index, 5, wx.ALIGN_CENTRE, wx.ALIGN_CENTRE)
+        else:
+            sender.gc_files.SetCellValue(index, 3, '')
+            sender.gc_files.SetCellValue(index, 4, '')
+            sender.gc_files.SetCellValue(index, 5, '')
+    
+        #sender.gc_files.AutoSizeColumns()
+        #sender.gc_files.AutoSizeColumn(2)
+        #sender.gc_files.AutoSizeColumn(3)
+        #sender.gc_files.AutoSizeColumn(4)
 
 #-------------------------------------------------------------------------------
 
@@ -284,7 +282,7 @@ class RedirectText(object):
         self.out=aWxTextCtrl
 
     def write(self,string):
-        wx.CallAfter(self.out.WriteText, string)
+        wx.CallAfter(self.out.AppendText, string)
 
     def flush(self):
         pass
@@ -308,7 +306,7 @@ class MyVCT(wx.Frame):
         # begin wxGlade: MyVCT.__init__
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
-        self.SetSize((800, 700))
+        self.SetSize((1058, 800))
         
         # Menu Bar
         self.VCT_menubar = wx.MenuBar()
@@ -330,20 +328,25 @@ class MyVCT(wx.Frame):
         self.join_to = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_READONLY)
         self.label_progress = wx.StaticText(self, wx.ID_ANY, "", style=wx.ALIGN_RIGHT)
         self.gauge = wx.Gauge(self, wx.ID_ANY, 100)
-        self.button_OK = wx.Button(self, wx.ID_ANY, "Convert")
+        self.button_STOP = wx.Button(self, wx.ID_ANY, "Stop JOB")
+        self.button_OK = wx.Button(self, wx.ID_ANY, "Start JOB")
         self.text_ctrl_log = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.HSCROLL | wx.TE_MULTILINE | wx.TE_READONLY)
 
         self.__set_properties()
         self.__do_layout()
 
         self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_CLICK, self.cellSelected, self.gc_files)
-        self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_DCLICK, self.cellActivated, self.gc_files)
         self.Bind(wx.EVT_BUTTON, self.cleanFiles, self.button_3)
         self.Bind(wx.EVT_BUTTON, self.selectFiles, self.button_4)
         self.Bind(wx.EVT_COMBOBOX, self.containerSelected, self.cb_container)
         self.Bind(wx.EVT_BUTTON, self.outputFolder, self.button_join_to)
+        self.Bind(wx.EVT_BUTTON, self.stopConvertJOB, self.button_STOP)
         self.Bind(wx.EVT_BUTTON, self.convertFiles, self.button_OK)
         # end wxGlade
+
+        # Exit Events 
+        self.Bind(wx.EVT_CLOSE, self.ExitApp)
+        self.Bind(wx.EVT_WINDOW_DESTROY, self.DestroyApp)
 
         self.SetTitle(VCT_TITLE)
         self.SetBackgroundColour(wx.Colour(234, 234, 234))
@@ -354,10 +357,11 @@ class MyVCT(wx.Frame):
         self.label_progress.SetLabel('')
         self.gauge.SetValue(0)
         self.CONVERTING = False
+        self.thrJOB = None
 
         # Better for log reading ...
         self.text_ctrl_log.SetFont(wx.Font(11, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
-        self.gc_files.AutoSizeColumns()
+        #self.gc_files.AutoSizeColumns()
 
         # Redirect STDOUT/STDERR
         redir=RedirectText(self.text_ctrl_log)
@@ -374,21 +378,23 @@ class MyVCT(wx.Frame):
     def __set_properties(self):
         # begin wxGlade: MyVCT.__set_properties
         self.SetTitle("VCT")
-        self.gc_files.CreateGrid(0, 5)
+        self.gc_files.CreateGrid(0, 6)
         self.gc_files.SetRowLabelSize(20)
         self.gc_files.SetColLabelSize(20)
         self.gc_files.EnableEditing(0)
         self.gc_files.EnableDragRowSize(0)
         self.gc_files.SetColLabelValue(0, "File")
-        self.gc_files.SetColSize(0, 262)
+        self.gc_files.SetColSize(0, 310)
         self.gc_files.SetColLabelValue(1, "Size")
-        self.gc_files.SetColSize(1, 75)
+        self.gc_files.SetColSize(1, 90)
         self.gc_files.SetColLabelValue(2, "Status")
-        self.gc_files.SetColSize(2, 78)
+        self.gc_files.SetColSize(2, 104)
         self.gc_files.SetColLabelValue(3, "Output File")
-        self.gc_files.SetColSize(3, 262)
+        self.gc_files.SetColSize(3, 310)
         self.gc_files.SetColLabelValue(4, "Output Size")
-        self.gc_files.SetColSize(4, 75)
+        self.gc_files.SetColSize(4, 90)
+        self.gc_files.SetColLabelValue(5, "Elapsed Time")
+        self.gc_files.SetColSize(5, 100)
         self.ch_delete.SetToolTip("Delete original input files once the conversion has finished successfully.")
         self.ch_tag.SetToolTip(u"Set a tag on the output video file name on the form of \u201c[9999x999-<video_codec>]\u201d.")
         self.ch_ns.SetToolTip("Do not process subtitles. Output files will not have subtitles streams.")
@@ -445,6 +451,7 @@ class MyVCT(wx.Frame):
         self.sizer_app.Add(self.sizer_join, 0, wx.ALL | wx.EXPAND, 4)
         self.sizer_buttons.Add(self.label_progress, 0, wx.ALL, 5)
         self.sizer_buttons.Add(self.gauge, 9, wx.ALL | wx.EXPAND, 5)
+        self.sizer_buttons.Add(self.button_STOP, 0, wx.ALIGN_RIGHT | wx.ALL | wx.EXPAND, 5)
         self.sizer_buttons.Add(self.button_OK, 0, wx.ALIGN_RIGHT | wx.ALL | wx.EXPAND, 5)
         self.sizer_app.Add(self.sizer_buttons, 0, wx.ALL | wx.EXPAND, 4)
         sizer_1.Add(self.text_ctrl_log, 10, wx.ALL | wx.EXPAND, 5)
@@ -454,7 +461,18 @@ class MyVCT(wx.Frame):
         # end wxGlade
 
     def ExitApp(self, event):  # wxGlade: MyVCT.<event_handler>
-        self.Close()
+        # kill all children
+        conv_to.kill_proctree()
+        if self.thrJOB != None:
+            self.thrJOB.stop()
+        self.Destroy()
+        event.Skip()
+
+    def DestroyApp(self, event):  # wxGlade: MyVCT.<event_handler>
+        # kill all children
+        conv_to.kill_proctree()
+        if self.thrJOB != None:
+            self.thrJOB.stop()
         event.Skip()
 
     def cleanFiles(self, event):  # wxGlade: MyVCT.<event_handler>
@@ -464,7 +482,7 @@ class MyVCT(wx.Frame):
         rows = self.gc_files.GetNumberRows()
         if rows > 0:
             self.gc_files.DeleteRows(0,rows)
-        self.gc_files.AutoSizeColumns()
+        #self.gc_files.AutoSizeColumns()
         event.Skip()
 
     def selectFiles(self, event):  # wxGlade: MyVCT.<event_handler>
@@ -490,8 +508,9 @@ class MyVCT(wx.Frame):
                 self.gc_files.SetCellValue(row, 3, '')
                 self.gc_files.SetCellValue(row, 4, '')
                 self.gc_files.SetCellTextColour(row, 4, sz_color)
+                self.gc_files.SetCellTextColour(row, 5, sz_color)
         dialog.Destroy()
-        self.gc_files.AutoSizeColumns()
+        #self.gc_files.AutoSizeColumns()
         #self.gc_files.AutoSizeColumn(0)
         #self.gc_files.AutoSizeColumn(1)
         #self.gc_files.AutoSizeColumn(2)
@@ -592,6 +611,43 @@ class MyVCT(wx.Frame):
             self.gauge.SetValue(0)
             self.label_progress.SetLabel('')
             wx.MessageBox('Conversion queue is empty', 'Warning', wx.OK|wx.ICON_WARNING)
+ 
+        event.Skip()
+
+    def stopConvertJOB(self, event):  # wxGlade: MyVCT.<event_handler>
+        self.text_ctrl_log.SetValue('')
+        conv_to.sep()
+        print('*** VCT: Interrupting JOB...')
+        self.CONVERTING=False
+
+        # kill all children
+        conv_to.kill_proctree()
+        
+        if self.thrJOB != None:
+            stopped = self.thrJOB.stop(True)
+            if not stopped:
+                stopped = self.thrJOB.stop()
+
+            if stopped:
+                del self.thrJOB
+                self.thrJOB = None
+                print('*** VCT conversion JOB stopped ***')
+                for ind in range(0,self.gc_files.GetNumberRows()):
+                    status = self.gc_files.GetCellValue(ind, 2)
+                    if (status == ST_JB) or (status == ST_CO) or (status == ST_ER):
+                        self.gc_files.SetCellValue(ind, 2, ST_QU)
+                        self.gc_files.SetCellBackgroundColour(ind, 2, wx.BLUE)
+                        self.gc_files.SetCellTextColour(ind, 2, wx.WHITE)
+                self.gauge.SetValue(0)
+                self.label_progress.SetLabel('')
+                self.button_OK.Enable()
+                self.button_join_to.Enable()
+                self.button_3.Enable()
+                self.button_4.Enable()
+            else:
+                print('*** VCT conversion JOB NOT stopped (unable to terminate thread) ***')
+
+        print('*** VCT: Stop Finished')
 
         event.Skip()
 
@@ -635,26 +691,6 @@ class MyVCT(wx.Frame):
 
         event.Skip()
 
-    def cellActivated(self, event):  # wxGlade: MyVCT.<event_handler>
-        if not self.CONVERTING:
-            self.text_ctrl_log.SetValue('')
-            self.gauge.SetValue(0)
-            self.label_progress.SetLabel('')
-
-        col = event.GetCol()
-        if col == 0 or col == 3:
-            file = self.gc_files.GetCellValue(event.GetRow(), col)
-            st = self.gc_files.GetCellValue(event.GetRow(), 2)
-            if len(file)!=0:
-                if col!=0 or st != ST_DD:
-                    dlg = wx.MessageDialog(None, 'Do you want to play file:\n"{}"?'.format(file),'VCT Player',wx.YES_NO | wx.ICON_QUESTION)
-                    result = dlg.ShowModal()
-                    if result == wx.ID_YES:
-                        status = vct_run_player(file=file, base=self.CMDROOT)
-                        if status != 0:
-                            wx.MessageBox('Error launching VCT Player', 'Error', wx.OK|wx.ICON_ERROR)
-        event.Skip()
-
 # end of class MyVCT
 
 class vct(wx.App):
@@ -669,3 +705,4 @@ class vct(wx.App):
 if __name__ == "__main__":
     vct = vct(0)
     vct.MainLoop()
+

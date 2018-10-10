@@ -14,6 +14,7 @@ from pathlib import Path
 import types
 from cmdscript import ExtendedTimer
 import datetime
+import psutil
 
 #-------------------------------------------------------------------------------
 
@@ -60,6 +61,31 @@ def _filter_out (str_list):
     for item in str_list:
         filtered_list.append(item.strip())
     return filtered_list
+
+#-------------------------------------------------------------------------------
+
+def kill_proctree (pid=None, include_parent=False, timeout=5):
+    me = os.getpid()
+
+    # Defaults to my pid
+    if pid == None:
+        pid = me
+
+    # I do not want to kill my self
+    if pid == me:
+        include_parent = False
+
+    parent = psutil.Process(pid)
+    children = parent.children(recursive=True)
+
+    for child in children:
+        child.kill()
+
+    gone, still_alive = psutil.wait_procs(children, timeout=timeout)
+
+    if include_parent:
+        parent.kill()
+        parent.wait(timeout)
 
 #-------------------------------------------------------------------------------
 
@@ -183,7 +209,7 @@ def join_input_files (files, f_out, args):
 
     #exec_command ('cat {}'.format(tmppath), get_stdout=True, verbose=True)
 
-    T = ExtendedTimer(5, 0, False, timerShowOutputFileSize, f_out)
+    T = ExtendedTimer(10, 0, False, timerShowOutputFileSize, f_out)
     T.start()
 
     # Command to join
@@ -519,7 +545,7 @@ def convert_video_file (file, file_out, args):
             options_string = options_string + opt + ' '
         options_string = options_string.strip()
 
-        T = ExtendedTimer(5, 0, False, timerShowOutputFileSize, file_out)
+        T = ExtendedTimer(10, 0, False, timerShowOutputFileSize, file_out)
         T.start()
 
         # Final command
@@ -557,7 +583,7 @@ def get_file_info (file, args):
 def convert_audio_file (file, file_out, args):
     global audio_container, info, exit_code
 
-    T = ExtendedTimer(5, 0, False, timerShowOutputFileSize, file_out)
+    T = ExtendedTimer(10, 0, False, timerShowOutputFileSize, file_out)
     T.start()
 
     audio_command = audio_container[args.container].format(args.bin, info[args.verbose], file, file_out)
