@@ -466,7 +466,7 @@ class MyVCT(wx.Frame):
         minimum_col_file = 222
         scroll = wx.SystemSettings.GetMetric(wx.SYS_HSCROLL_Y)
         label_row = self.gc_files.GetColLabelSize()
-        padding = -1
+        padding = 0
 
         self.gc_files.SetColSize(1, col_size)
         self.gc_files.SetColSize(2, col_status)
