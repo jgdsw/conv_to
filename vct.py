@@ -175,10 +175,6 @@ def SignalStart (sender, row):
         sender.gc_files.SetCellValue(row, 2, ST_CO)
         sender.gc_files.SetCellTextColour(row, 2, wx.YELLOW)
         sender.gc_files.SetCellBackgroundColour(row, 2, wx.BLACK)
-    
-        #sender.gc_files.AutoSizeColumn(2)
-        #sender.gc_files.AutoSizeColumn(3)
-        #sender.gc_files.AutoSizeColumn(4)
 
 #-------------------------------------------------------------------------------
 
@@ -240,11 +236,6 @@ def SignalProgress(sender, increment):
             sender.gc_files.SetCellValue(index, 3, '')
             sender.gc_files.SetCellValue(index, 4, '')
             sender.gc_files.SetCellValue(index, 5, '')
-    
-        #sender.gc_files.AutoSizeColumns()
-        #sender.gc_files.AutoSizeColumn(2)
-        #sender.gc_files.AutoSizeColumn(3)
-        #sender.gc_files.AutoSizeColumn(4)
 
 #-------------------------------------------------------------------------------
 
@@ -348,6 +339,9 @@ class MyVCT(wx.Frame):
         self.Bind(wx.EVT_CLOSE, self.ExitApp)
         self.Bind(wx.EVT_WINDOW_DESTROY, self.DestroyApp)
 
+        # On resize for the Grid
+        self.gc_files.Bind(wx.EVT_SIZE, self.OnSize)
+
         self.SetTitle(VCT_TITLE)
         self.SetBackgroundColour(wx.Colour(234, 234, 234))
         self.text_ctrl_log.SetBackgroundColour(wx.Colour(245, 245, 245))
@@ -361,7 +355,6 @@ class MyVCT(wx.Frame):
 
         # Better for log reading ...
         self.text_ctrl_log.SetFont(wx.Font(11, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
-        #self.gc_files.AutoSizeColumns()
 
         # Redirect STDOUT/STDERR
         redir=RedirectText(self.text_ctrl_log)
@@ -460,6 +453,38 @@ class MyVCT(wx.Frame):
         self.Layout()
         # end wxGlade
 
+    def OnSize(self, event):
+        width, height = event.GetSize()
+        self.ResizeAllCols(width)
+        event.Skip()
+
+    def ResizeAllCols(self, width):
+        col_size = 90
+        col_status = 90
+        col_osize = 90
+        col_etime = 98
+        minimum_col_file = 222
+        scroll = wx.SystemSettings.GetMetric(wx.SYS_HSCROLL_Y)
+        label_row = self.gc_files.GetColLabelSize()
+        padding = -1
+
+        self.gc_files.SetColSize(1, col_size)
+        self.gc_files.SetColSize(2, col_status)
+        self.gc_files.SetColSize(4, col_osize)
+        self.gc_files.SetColSize(5, col_etime)
+        
+        assigned = col_size + col_status + col_osize + col_etime + scroll + label_row + padding
+        shared = width - assigned
+
+        if shared < (minimum_col_file*2):
+            col_file = minimum_col_file
+            rest = 0
+        else:
+            col_file, rest = divmod (shared, 2)
+
+        self.gc_files.SetColSize(0, col_file + rest)
+        self.gc_files.SetColSize(3, col_file)
+
     def ExitApp(self, event):  # wxGlade: MyVCT.<event_handler>
         # kill all children
         conv_to.kill_proctree()
@@ -482,14 +507,9 @@ class MyVCT(wx.Frame):
         rows = self.gc_files.GetNumberRows()
         if rows > 0:
             self.gc_files.DeleteRows(0,rows)
-        #self.gc_files.AutoSizeColumns()
         event.Skip()
 
     def selectFiles(self, event):  # wxGlade: MyVCT.<event_handler>
-        #self.text_ctrl_log.SetValue('')
-        #self.gauge.SetValue(0)
-        #self.label_progress.SetLabel('')
-
         dialog = wx.FileDialog(None, "Choose audio/video file/s:", style=wx.FD_OPEN|wx.FD_MULTIPLE|wx.FD_FILE_MUST_EXIST)
         if dialog.ShowModal() == wx.ID_OK:
             selecteds = dialog.GetPaths()
@@ -502,7 +522,6 @@ class MyVCT(wx.Frame):
                 self.gc_files.SetCellTextColour(row, 1, sz_color)
                 self.gc_files.SetCellAlignment(row, 1, wx.ALIGN_RIGHT, wx.ALIGN_CENTRE)
                 self.gc_files.SetCellValue(row, 2, ST_QU)
-                #bg_color = wx.SystemSettings.GetColour(wx.SYS_COLOUR_BACKGROUND)
                 self.gc_files.SetCellBackgroundColour(row, 2, wx.BLUE)
                 self.gc_files.SetCellTextColour(row, 2, wx.WHITE)
                 self.gc_files.SetCellValue(row, 3, '')
@@ -510,12 +529,6 @@ class MyVCT(wx.Frame):
                 self.gc_files.SetCellTextColour(row, 4, sz_color)
                 self.gc_files.SetCellTextColour(row, 5, sz_color)
         dialog.Destroy()
-        #self.gc_files.AutoSizeColumns()
-        #self.gc_files.AutoSizeColumn(0)
-        #self.gc_files.AutoSizeColumn(1)
-        #self.gc_files.AutoSizeColumn(2)
-        #self.gc_files.AutoSizeColumn(3)
-        #self.gc_files.AutoSizeColumn(4)
         event.Skip()
 
     def outputFolder(self, event):  # wxGlade: MyVCT.<event_handler>
