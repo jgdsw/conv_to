@@ -231,7 +231,7 @@ def SignalProgress(sender, increment):
             sender.gc_files.SetCellValue(index, 4, '{:.2f} MB'.format(conv_to.show_file_size(file, verbose=False)))
             sender.gc_files.SetCellAlignment(index, 4, wx.ALIGN_RIGHT, wx.ALIGN_CENTRE)
             sender.gc_files.SetCellValue(index, 5, elapsed)
-            sender.gc_files.SetCellAlignment(index, 5, wx.ALIGN_CENTRE, wx.ALIGN_CENTRE)
+            sender.gc_files.SetCellAlignment(index, 5, wx.ALIGN_RIGHT, wx.ALIGN_CENTRE)
         else:
             sender.gc_files.SetCellValue(index, 3, '')
             sender.gc_files.SetCellValue(index, 4, '')
@@ -462,7 +462,7 @@ class MyVCT(wx.Frame):
         col_size = 90
         col_status = 90
         col_osize = 90
-        col_etime = 98
+        col_etime = 94
         minimum_col_file = 222
         scroll = wx.SystemSettings.GetMetric(wx.SYS_HSCROLL_Y)
         label_row = self.gc_files.GetColLabelSize()
