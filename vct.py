@@ -273,7 +273,8 @@ class RedirectText(object):
         self.out=aWxTextCtrl
 
     def write(self,string):
-        wx.CallAfter(self.out.AppendText, string)
+        wx.CallAfter(self.out.SetInsertionPointEnd)
+        wx.CallAfter(self.out.WriteText, string)
 
     def flush(self):
         pass
@@ -289,6 +290,37 @@ class RedirectText(object):
 def cellOriginalSize(str_value):
     st = str_value.split()
     return (ToFloat(st[0]))
+
+
+#-------------------------------------------------------------------------------
+
+def VCT_insertFiles(grid, files):
+    for f in files:
+        row = grid.GetNumberRows()
+        grid.AppendRows(1)
+        grid.SetCellValue(row, 0, f)
+        grid.SetCellValue(row, 1, '{:.2f} MB'.format(conv_to.show_file_size(f, verbose=False)))
+        sz_color = (0x6d, 0x6e, 0x61)
+        grid.SetCellTextColour(row, 1, sz_color)
+        grid.SetCellAlignment(row, 1, wx.ALIGN_RIGHT, wx.ALIGN_CENTRE)
+        grid.SetCellValue(row, 2, ST_QU)
+        grid.SetCellBackgroundColour(row, 2, wx.BLUE)
+        grid.SetCellTextColour(row, 2, wx.WHITE)
+        grid.SetCellValue(row, 3, '')
+        grid.SetCellValue(row, 4, '')
+        grid.SetCellTextColour(row, 4, sz_color)
+        grid.SetCellTextColour(row, 5, sz_color)
+
+#-------------------------------------------------------------------------------
+
+class VCT_FileDropTarget(wx.FileDropTarget):
+    def __init__(self, window):
+        wx.FileDropTarget.__init__(self)
+        self.window = window
+
+    def OnDropFiles(self, x, y, filenames):
+        VCT_insertFiles (self.window, filenames)
+        return True
 
 #-------------------------------------------------------------------------------
 
@@ -341,6 +373,10 @@ class MyVCT(wx.Frame):
 
         # On resize for the Grid
         self.gc_files.Bind(wx.EVT_SIZE, self.OnSize)
+
+        # Drag & Drop
+        dnd = VCT_FileDropTarget(self.gc_files)
+        self.SetDropTarget(dnd)
 
         self.SetTitle(VCT_TITLE)
         self.SetBackgroundColour(wx.Colour(234, 234, 234))
@@ -513,21 +549,7 @@ class MyVCT(wx.Frame):
         dialog = wx.FileDialog(None, "Choose audio/video file/s:", style=wx.FD_OPEN|wx.FD_MULTIPLE|wx.FD_FILE_MUST_EXIST)
         if dialog.ShowModal() == wx.ID_OK:
             selecteds = dialog.GetPaths()
-            for f in selecteds:
-                row = self.gc_files.GetNumberRows()
-                self.gc_files.AppendRows(1)
-                self.gc_files.SetCellValue(row, 0, f)
-                self.gc_files.SetCellValue(row, 1, '{:.2f} MB'.format(conv_to.show_file_size(f, verbose=False)))
-                sz_color = (0x6d, 0x6e, 0x61)
-                self.gc_files.SetCellTextColour(row, 1, sz_color)
-                self.gc_files.SetCellAlignment(row, 1, wx.ALIGN_RIGHT, wx.ALIGN_CENTRE)
-                self.gc_files.SetCellValue(row, 2, ST_QU)
-                self.gc_files.SetCellBackgroundColour(row, 2, wx.BLUE)
-                self.gc_files.SetCellTextColour(row, 2, wx.WHITE)
-                self.gc_files.SetCellValue(row, 3, '')
-                self.gc_files.SetCellValue(row, 4, '')
-                self.gc_files.SetCellTextColour(row, 4, sz_color)
-                self.gc_files.SetCellTextColour(row, 5, sz_color)
+            VCT_insertFiles(self.gc_files, selecteds)
         dialog.Destroy()
         event.Skip()
 
@@ -628,40 +650,41 @@ class MyVCT(wx.Frame):
         event.Skip()
 
     def stopConvertJOB(self, event):  # wxGlade: MyVCT.<event_handler>
-        self.text_ctrl_log.SetValue('')
-        conv_to.sep()
-        print('*** VCT: Interrupting JOB...')
-        self.CONVERTING=False
-
-        # kill all children
-        conv_to.kill_proctree()
-        
-        if self.thrJOB != None:
-            stopped = self.thrJOB.stop(True)
-            if not stopped:
-                stopped = self.thrJOB.stop()
-
-            if stopped:
-                del self.thrJOB
-                self.thrJOB = None
-                print('*** VCT conversion JOB stopped ***')
-                for ind in range(0,self.gc_files.GetNumberRows()):
-                    status = self.gc_files.GetCellValue(ind, 2)
-                    if (status == ST_JB) or (status == ST_CO) or (status == ST_ER):
-                        self.gc_files.SetCellValue(ind, 2, ST_QU)
-                        self.gc_files.SetCellBackgroundColour(ind, 2, wx.BLUE)
-                        self.gc_files.SetCellTextColour(ind, 2, wx.WHITE)
-                self.gauge.SetValue(0)
-                self.label_progress.SetLabel('')
-                self.button_OK.Enable()
-                self.button_join_to.Enable()
-                self.button_3.Enable()
-                self.button_4.Enable()
-            else:
-                print('*** VCT conversion JOB NOT stopped (unable to terminate thread) ***')
-
-        print('*** VCT: Stop Finished')
-
+        if self.CONVERTING:
+            self.text_ctrl_log.SetValue('')
+            conv_to.sep()
+            print('*** VCT: Interrupting JOB...')
+            self.CONVERTING=False
+    
+            # kill all children
+            conv_to.kill_proctree()
+            
+            if self.thrJOB != None:
+                stopped = self.thrJOB.stop(True)
+                if not stopped:
+                    stopped = self.thrJOB.stop()
+    
+                if stopped:
+                    del self.thrJOB
+                    self.thrJOB = None
+                    print('*** VCT conversion JOB stopped ***')
+                    for ind in range(0,self.gc_files.GetNumberRows()):
+                        status = self.gc_files.GetCellValue(ind, 2)
+                        if (status == ST_JB) or (status == ST_CO):
+                            self.gc_files.SetCellValue(ind, 2, ST_QU)
+                            self.gc_files.SetCellBackgroundColour(ind, 2, wx.BLUE)
+                            self.gc_files.SetCellTextColour(ind, 2, wx.WHITE)
+                    self.gauge.SetValue(0)
+                    self.label_progress.SetLabel('')
+                    self.button_OK.Enable()
+                    self.button_join_to.Enable()
+                    self.button_3.Enable()
+                    self.button_4.Enable()
+                else:
+                    print('*** VCT conversion JOB NOT stopped (unable to terminate thread) ***')
+    
+            print('*** VCT: Stop Finished')
+    
         event.Skip()
 
     def containerSelected(self, event):  # wxGlade: MyVCT.<event_handler>
