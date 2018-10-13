@@ -212,12 +212,13 @@ def join_input_files (files, f_out, args):
     T = ExtendedTimer(10, 0, False, timerShowOutputFileSize, f_out)
     T.start()
 
-    # Command to join
-    join_command = ffmpeg_join.format(args.bin, info[args.verbose], tmppath, f_out)
-    st, out, err = exec_command(join_command, get_stdout=False, verbose=args.verbose)
-
-    T.cancel()
-    del T
+    try:
+        # Command to join
+        join_command = ffmpeg_join.format(args.bin, info[args.verbose], tmppath, f_out)
+        st, out, err = exec_command(join_command, get_stdout=False, verbose=args.verbose)
+    finally:
+        T.cancel()
+        del T
 
     # Remove temporary file
     if not delete_file(tmppath):
@@ -549,12 +550,13 @@ def convert_video_file (file, file_out, args):
         T.start()
 
         # Final command
-        comm = ffmpeg_comm.format(args.bin, info[args.verbose], file, options_string, file_out)
-        st, out, err = exec_command(comm, get_stdout=False, verbose=args.verbose)
-        exit_code = st
-
-        T.cancel()
-        del T
+        try:
+            comm = ffmpeg_comm.format(args.bin, info[args.verbose], file, options_string, file_out)
+            st, out, err = exec_command(comm, get_stdout=False, verbose=args.verbose)
+            exit_code = st
+        finally:
+            T.cancel()
+            del T
 
     else:
         # Error obtaining streams data
@@ -586,12 +588,13 @@ def convert_audio_file (file, file_out, args):
     T = ExtendedTimer(10, 0, False, timerShowOutputFileSize, file_out)
     T.start()
 
-    audio_command = audio_container[args.container].format(args.bin, info[args.verbose], file, file_out)
-    st, out, err = exec_command(audio_command, get_stdout=False, verbose=args.verbose)
-    exit_code = st
-
-    T.cancel()
-    del T
+    try:
+        audio_command = audio_container[args.container].format(args.bin, info[args.verbose], file, file_out)
+        st, out, err = exec_command(audio_command, get_stdout=False, verbose=args.verbose)
+        exit_code = st
+    finally:
+        T.cancel()
+        del T
 
 #-------------------------------------------------------------------------------
 
