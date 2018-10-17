@@ -31,7 +31,7 @@ VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
-VCT_TITLE = 'Video Conversion Tool [VCT] v3.0'
+VCT_TITLE = 'Video Conversion Tool [VCT] v3.0.1'
 
 ST_QU = 'On Queue'
 ST_JB = 'On JOB'
@@ -100,19 +100,32 @@ def convertFiles (params, sender):
         for index, file in params.files:
             wx.CallAfter(dispatcher.send, signal=VCT_INIT, sender=sender, row=index)
    
+            filename = ''
+            status = 9999
+            elapsed = ''
+
             start_time = datetime.datetime.now()
 
-            status, out_filenames = convertFile(params, file)
+            try:
+                status, out_filenames = convertFile(params, file)
 
-            elapsed_time = datetime.datetime.now() - start_time
-            elapsed = fmt_deltatime(elapsed_time)
+                elapsed_time = datetime.datetime.now() - start_time
+                elapsed = fmt_deltatime(elapsed_time)
 
-            if status == 0:
-                filename = out_filenames[file]
-            else:
-                filename = ''
+                if status == 0:
+                    filename = out_filenames[file]
+                else:
+                    filename = ''
 
-            wx.CallAfter(dispatcher.send, signal=VCT_PROG, sender=sender, increment=(index, filename, params.delete, status, elapsed))
+            except BaseException as exc:
+                print('!!! THR-convert: Run-Time BaseException: [{}]'.format(exc))
+
+            except Exception as exc:
+                print('!!! THR-convert: Run-Time Exception: [{}]'.format(exc))            
+
+            finally:
+                wx.CallAfter(dispatcher.send, signal=VCT_PROG, sender=sender, increment=(index, filename, params.delete, status, elapsed))
+
     else:
         # Join of different files
         files_join = []
@@ -123,14 +136,30 @@ def convertFiles (params, sender):
             files_vct.append((index, file))
             wx.CallAfter(dispatcher.send, signal=VCT_INIT, sender=sender, row=index)
 
-        status, out_filenames = joinToFile (params, files_join)
+        status = 9999
+        elapsed = ''
 
-        for index, file in files_vct:
-            if status == 0:
-                filename = out_filenames[file]
-            else:
-                filename = ''
-            wx.CallAfter(dispatcher.send, signal=VCT_PROG, sender=sender, increment=(index, filename, params.delete, status))
+        start_time = datetime.datetime.now()
+
+        try:
+            status, out_filenames = joinToFile (params, files_join)
+
+            elapsed_time = datetime.datetime.now() - start_time
+            elapsed = fmt_deltatime(elapsed_time)
+
+        except BaseException as exc:
+            print('!!! THR-join: Run-Time BaseException: [{}]'.format(exc))
+
+        except Exception as exc:
+            print('!!! THR-join: Run-Time Exception: [{}]'.format(exc)) 
+
+        finally:
+            for index, file in files_vct:
+                if status == 0:
+                    filename = out_filenames[file]
+                else:
+                    filename = ''
+                wx.CallAfter(dispatcher.send, signal=VCT_PROG, sender=sender, increment=(index, filename, params.delete, status, elapsed))
 
     print(">>> vct: JOB Completed!\n")
 
