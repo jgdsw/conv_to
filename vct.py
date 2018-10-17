@@ -117,9 +117,6 @@ def convertFiles (params, sender):
                 else:
                     filename = ''
 
-            except BaseException as exc:
-                print('!!! THR-convert: Run-Time BaseException: [{}]'.format(exc))
-
             except Exception as exc:
                 print('!!! THR-convert: Run-Time Exception: [{}]'.format(exc))            
 
@@ -146,9 +143,6 @@ def convertFiles (params, sender):
 
             elapsed_time = datetime.datetime.now() - start_time
             elapsed = fmt_deltatime(elapsed_time)
-
-        except BaseException as exc:
-            print('!!! THR-join: Run-Time BaseException: [{}]'.format(exc))
 
         except Exception as exc:
             print('!!! THR-join: Run-Time Exception: [{}]'.format(exc)) 
