@@ -22,6 +22,7 @@ from pydispatch import dispatcher
 import types
 import conv_to
 from cmdscript import SThread
+import cmdscript as c
 
 #-------------------------------------------------------------------------------
 
@@ -402,18 +403,28 @@ class MyVCT(wx.Frame):
         self.SetDropTarget(dnd)
 
         self.SetTitle(VCT_TITLE)
-        self.SetBackgroundColour(wx.Colour(234, 234, 234))
-        self.text_ctrl_log.SetBackgroundColour(wx.Colour(245, 245, 245))
-        
+
+        # Platform GUI adjustments
+        p = c.OS()
+        if p == 'WINDOWS':
+            self.SetBackgroundColour(wx.Colour(234, 234, 234))
+            self.text_ctrl_log.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
+            self.text_ctrl_log.SetBackgroundColour(wx.NullColour)
+        elif p == 'MACOSX':
+            self.SetBackgroundColour(wx.Colour(234, 234, 234))
+            self.text_ctrl_log.SetFont(wx.Font(11, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
+            self.text_ctrl_log.SetBackgroundColour(wx.NullColour)
+        else:
+            self.SetBackgroundColour(wx.NullColour)
+            self.text_ctrl_log.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
+            self.text_ctrl_log.SetBackgroundColour(wx.NullColour)
+
         self.done =  0.0
         self.total = 0.0
         self.label_progress.SetLabel('')
         self.gauge.SetValue(0)
         self.CONVERTING = False
         self.thrJOB = None
-
-        # Better for log reading ...
-        self.text_ctrl_log.SetFont(wx.Font(11, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
 
         # Redirect STDOUT/STDERR
         redir=RedirectText(self.text_ctrl_log)
