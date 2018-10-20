@@ -32,7 +32,7 @@ VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
-VCT_TITLE = 'Video Conversion Tool [VCT] v3.0.1'
+VCT_TITLE = 'Video Conversion Tool [VCT] v3.0.2'
 
 ST_QU = 'On Queue'
 ST_JB = 'On JOB'
@@ -439,7 +439,7 @@ class MyVCT(wx.Frame):
         dispatcher.connect(SignalProgress, signal=VCT_PROG, sender=self)
         dispatcher.connect(SignalStart, signal=VCT_INIT, sender=self)
 
-        # Commands root path 
+        # Commands root path
         if p == 'WINDOWS' or p == 'MACOSX':
             self.CMDROOT = os.path.join(resource_path(), BIN, '')
         else:
