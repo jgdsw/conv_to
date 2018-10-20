@@ -407,17 +407,17 @@ class MyVCT(wx.Frame):
         # Platform GUI adjustments
         p = c.OS()
         if p == 'WINDOWS':
-            self.SetBackgroundColour(wx.Colour(234, 234, 234))
-            self.text_ctrl_log.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
-            self.text_ctrl_log.SetBackgroundColour(wx.NullColour)
+            self.SetBackgroundColour(wx.NullColour)
+            self.text_ctrl_log.SetFont(wx.Font(9, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
         elif p == 'MACOSX':
-            self.SetBackgroundColour(wx.Colour(234, 234, 234))
+            self.SetBackgroundColour(wx.Colour(230, 230, 230))
             self.text_ctrl_log.SetFont(wx.Font(11, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
-            self.text_ctrl_log.SetBackgroundColour(wx.NullColour)
+        elif p == 'LINUX':
+            self.SetBackgroundColour(wx.NullColour)
+            self.text_ctrl_log.SetFont(wx.Font(9, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
         else:
             self.SetBackgroundColour(wx.NullColour)
-            self.text_ctrl_log.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
-            self.text_ctrl_log.SetBackgroundColour(wx.NullColour)
+            self.text_ctrl_log.SetFont(wx.Font(9, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))            
 
         self.done =  0.0
         self.total = 0.0
@@ -464,16 +464,17 @@ class MyVCT(wx.Frame):
         self.ch_na.SetToolTip("Do not process audio. Output files will not have audio streams.")
         self.ch_force.SetToolTip("Force re-encoding of files. Do not optimize conversion process.")
         self.ch_flip.SetToolTip(u"Rotate video 180\u00ba (upside down).")
+        self.cb_container.SetMinSize((95, 26))
         self.cb_container.SetToolTip("Set the container format value for the converted files")
         self.cb_container.SetSelection(4)
+        self.cb_fps.SetMinSize((95, 26))
         self.cb_fps.SetToolTip("Set the FPS value for the converted files")
         self.cb_fps.SetSelection(0)
+        self.cb_resolution.SetMinSize((95, 26))
         self.cb_resolution.SetToolTip("Set the resolution value for the converted files")
         self.cb_resolution.SetSelection(0)
         self.join_to.SetToolTip("Set the output folder for the output file containing the joining of the selected input files.")
         self.label_progress.SetMinSize((40, 15))
-        self.text_ctrl_log.SetBackgroundColour(wx.Colour(222, 222, 222))
-        self.text_ctrl_log.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
         # end wxGlade
 
     def __do_layout(self):
