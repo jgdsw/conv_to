@@ -306,6 +306,9 @@ class RedirectText(object):
     def isatty(self):
         return False
 
+    def open(self):
+        pass
+
     def close(self):
         pass
 
@@ -431,12 +434,17 @@ class MyVCT(wx.Frame):
         sys.stdout=redir
         sys.stderr=redir
 
-        self.CMDROOT = os.path.join(resource_path(), BIN, '')
-
         # create pubsub receivers
         dispatcher.connect(SignalDone, signal=VCT_DONE, sender=self)
         dispatcher.connect(SignalProgress, signal=VCT_PROG, sender=self)
         dispatcher.connect(SignalStart, signal=VCT_INIT, sender=self)
+
+        # Commands root path 
+        if p == 'WINDOWS' or p == 'MACOSX':
+            self.CMDROOT = os.path.join(resource_path(), BIN, '')
+        else:
+            self.CMDROOT = ''
+            print('*** VCT needs ffmpeg/ffprobe command tools installed on your system ***')
 
     def __set_properties(self):
         # begin wxGlade: MyVCT.__set_properties
