@@ -30,7 +30,7 @@ def build_MACOSX (ver):
 def build_LINUX (ver):
     c.call('pyinstaller --onefile --windowed --icon {}.png {}.py -n {}'.format(SRC, SRC, APP))
     c.call('mv ./dist/{} .'.format(APP))
-    c.call('tar cvzf {}v{}-Linux-x86_64.tar.gz {}'.format(APP, ver, APP))
+    c.call('tar cvzf {}v{}-{}-{}.tar.gz {}'.format(APP, ver, sys.platform, p.architecture()[0], APP))
     c.call('rm {}'.format(APP))
 
 #-------------------------------------------------------------------------------
@@ -65,6 +65,7 @@ build_function = {
 def run (ver):
     clean.run(True)
     platform = c.OS()
+    print ('* Building for [{}]({})...'.format(sys.platform, p.architecture()[0]))
     build_function[platform](ver)
     clean.run(False)
    
