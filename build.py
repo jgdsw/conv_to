@@ -2,6 +2,8 @@
 
 import sys
 import argparse
+import platform as p
+import zipfile as z
 import cmdscript as c
 import clean
 
@@ -13,7 +15,7 @@ SRC = 'vct'
 def build_MACOSX (ver):
     c.system('hdiutil detach "/Volumes/Installer"')
     c.system('hdiutil detach "/Volumes/{}v{} Installer"'.format(APP, ver))
-    #pyinstaller --onefile --windowed --icon SRC.icns SRC.py -n APP
+    #pyinstaller --onefile --windowed --add-binary bin/ffmpeg:bin --add-binary bin/ffprobe:bin --icon SRC.icns SRC.py -n APP
     c.call('pyinstaller {}_macos.spec'.format(APP))
     c.call('cp ./Installer.dmg.disk tmp.dmg')
     c.call('hdiutil attach ./tmp.dmg')
@@ -28,14 +30,27 @@ def build_MACOSX (ver):
 def build_LINUX (ver):
     c.call('pyinstaller --onefile --windowed --icon {}.png {}.py -n {}'.format(SRC, SRC, APP))
     c.call('mv ./dist/{} .'.format(APP))
-    c.call('tar cvzf {}v{}-linux-x86_64.tar.gz {}'.format(APP, ver, APP))
+    c.call('tar cvzf {}v{}-Linux-x86_64.tar.gz {}'.format(APP, ver, APP))
     c.call('rm {}'.format(APP))
 
 #-------------------------------------------------------------------------------
 
 def build_WINDOWS (ver):
-    c.call('pyinstaller --onefile --windowed --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
-    c.call('copy .\\dist\\*.exe .')
+    arch, wfam = p.architecture()
+    exe = '{}.exe'.format(APP)
+
+    c.call('pyinstaller --onefile --windowed --add-binary bin\\ffmpeg.exe;bin --add-binary bin\\ffprobe.exe;bin --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
+    c.call('copy .\\dist\\{} .'.format(exe))
+    zipfile = '{}v{}-{}-{}.zip'.format(APP, ver, wfam, arch)
+    try:
+        Zip = z.ZipFile (zipfile, mode='w', compression=z.ZIP_DEFLATED)
+    except:
+        print ('Zlib not available. Switching to uncompressed Zip file.')
+        Zip = z.ZipFile (zipfile, mode='w', compression=z.ZIP_STORED)
+    
+    Zip.write(exe)
+    Zip.close()
+    c.rm_file(exe)
 
 #-------------------------------------------------------------------------------
 
@@ -63,6 +78,7 @@ if __name__ == "__main__":
     # Always show Help with no params
     if len(sys.argv) < 2:
         parser.print_help()
+        clean.run(False)
         sys.exit(1)
     
     args = parser.parse_args()

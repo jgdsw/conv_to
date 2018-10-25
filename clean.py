@@ -8,7 +8,7 @@ spec = 'VCT.spec'
 artifacts = {
     'MACOSX':  'VCT*.dmg',
     'LINUX':   'VCT*.tar.gz',
-    'WINDOWS': 'VCT*.exe'
+    'WINDOWS': 'VCT*.zip'
 }
 
 #-------------------------------------------------------------------------------
