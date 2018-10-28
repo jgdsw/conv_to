@@ -5,6 +5,7 @@ import cmdscript as c
 
 dirs = ['__pycache__', 'build', 'dist']
 spec = 'VCT.spec'
+tmps = '*~'
 artifacts = {
     'MACOSX':  'VCT*.dmg',
     'LINUX':   'VCT*.tar.gz',
@@ -27,6 +28,9 @@ def run (clean_artifacts=True):
     for d in dirs:
         status = c.rm_dirtree(d)
         print('* Clean [{}] --> ({})'.format(d, status))
+
+    status = c.rm_file_spec(tmps)
+    print('* Clean [{}] --> ({})'.format(tmps, status))    
      
 #-------------------------------------------------------------------------------
 

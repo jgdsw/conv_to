@@ -23,6 +23,7 @@ import types
 import conv_to
 from cmdscript import SThread
 import cmdscript as c
+from multiprocessing import Process
 
 #-------------------------------------------------------------------------------
 
@@ -32,7 +33,7 @@ VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
-VCT_TITLE = 'Video Conversion Tool [VCT] v3.0.2'
+VCT_TITLE = 'Video Conversion Tool [VCT] v3.1.0'
 
 ST_QU = 'On Queue'
 ST_JB = 'On JOB'
@@ -80,7 +81,6 @@ def joinToFile (params, files):
     #print (status, out_files)
     return status, out_files
 
-
 #-------------------------------------------------------------------------------
 
 def fmt_deltatime (tdelta):
@@ -89,6 +89,30 @@ def fmt_deltatime (tdelta):
     minutes, seconds = divmod(rem, 60)
     str_delta = '{:02d}:{:02d}:{:02d}.{:03d}'.format(hours, minutes, seconds, tdelta.microseconds//1000)
     return str_delta
+
+#-------------------------------------------------------------------------------
+
+def playFile (file):
+    launcher = {
+        'WINDOWS': 'start "{}"',
+        'MACOSX': 'open "{}"',
+        'LINUX': 'xdg-open "{}"'
+    }
+    try:
+        cmd = launcher[c.OS()].format(file)
+        st, out, err = conv_to.exec_command(cmd, get_stdout=False, get_stderr=False)
+    except SystemExit as exit:
+        if exit.code != 0:
+            print('*** Play Run-Time Error: [{}]'.format(exit.code))
+    except Exception as exc:
+        print('*** Play Run-Time Exception: [{}]'.format(exc))
+
+#-------------------------------------------------------------------------------
+ 
+def launchPlayer (file):
+    child = Process(target=playFile, args=(file,))
+    child.start()
+    return (0)
 
 #-------------------------------------------------------------------------------
 
@@ -386,6 +410,7 @@ class MyVCT(wx.Frame):
         self.__do_layout()
 
         self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_CLICK, self.cellSelected, self.gc_files)
+        self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_DCLICK, self.cellPlay, self.gc_files)
         self.Bind(wx.EVT_BUTTON, self.cleanFiles, self.button_3)
         self.Bind(wx.EVT_BUTTON, self.selectFiles, self.button_4)
         self.Bind(wx.EVT_COMBOBOX, self.containerSelected, self.cb_container)
@@ -768,6 +793,27 @@ class MyVCT(wx.Frame):
                     if col != 0 or st != ST_DD:
                         ShowFileInfo(file, self.CMDROOT)
 
+        event.Skip()
+
+    def cellPlay(self, event):  # wxGlade: MyVCT.<event_handler>
+        if not self.CONVERTING:
+            self.text_ctrl_log.SetValue('')
+            self.gauge.SetValue(0)
+            self.label_progress.SetLabel('')
+
+        col = event.GetCol()
+        row = event.GetRow()
+        if col == 0 or col == 3:
+            file = self.gc_files.GetCellValue(row, col)
+            st = self.gc_files.GetCellValue(row, 2)
+            if len(file)!=0:
+                if col!=0 or st != ST_DD:
+                    dlg = wx.MessageDialog(None, 'Do you want to play file:\n"{}"?'.format(file),'Launch Video Player',wx.YES_NO | wx.ICON_QUESTION)
+                    result = dlg.ShowModal()
+                    if result == wx.ID_YES:
+                        status = launchPlayer(file=file)
+                        if status != 0:
+                            wx.MessageBox('Error launching Video Player', 'Error', wx.OK|wx.ICON_ERROR)
         event.Skip()
 
 # end of class MyVCT
