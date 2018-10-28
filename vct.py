@@ -94,7 +94,7 @@ def fmt_deltatime (tdelta):
 
 def playFile (file):
     launcher = {
-        'WINDOWS': 'start "{}"',
+        'WINDOWS': '"{}"',
         'MACOSX': 'open "{}"',
         'LINUX': 'xdg-open "{}"'
     }
