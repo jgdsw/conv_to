@@ -33,7 +33,7 @@ VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
-VCT_TITLE = 'Video Conversion Tool [VCT] v3.1.2'
+VCT_TITLE = 'Video Conversion Tool [VCT] v3.2.0'
 
 ST_QU = 'On Queue'
 ST_JB = 'On JOB'
@@ -94,7 +94,7 @@ def fmt_deltatime (tdelta):
 
 def playFile (file):
     launcher = {
-        'WINDOWS': '"{}"',
+        'WINDOWS': 'start "CMD" "{}"',
         'MACOSX': 'open "{}"',
         'LINUX': 'xdg-open "{}"'
     }
@@ -796,24 +796,24 @@ class MyVCT(wx.Frame):
         event.Skip()
 
     def cellPlay(self, event):  # wxGlade: MyVCT.<event_handler>
-        #if not self.CONVERTING:
-        #    self.text_ctrl_log.SetValue('')
-        #    self.gauge.SetValue(0)
-        #    self.label_progress.SetLabel('')
-        #
-        #col = event.GetCol()
-        #row = event.GetRow()
-        #if col == 0 or col == 3:
-        #    file = self.gc_files.GetCellValue(row, col)
-        #    st = self.gc_files.GetCellValue(row, 2)
-        #    if len(file)!=0:
-        #        if col!=0 or st != ST_DD:
-        #            dlg = wx.MessageDialog(None, 'Do you want to play file:\n"{}"?'.format(file),'Launch Video Player',wx.YES_NO | wx.ICON_QUESTION)
-        #            result = dlg.ShowModal()
-        #            if result == wx.ID_YES:
-        #                status = launchPlayer(file=file)
-        #                if status != 0:
-        #                    wx.MessageBox('Error launching Video Player', 'Error', wx.OK|wx.ICON_ERROR)
+        if not self.CONVERTING:
+            self.text_ctrl_log.SetValue('')
+            self.gauge.SetValue(0)
+            self.label_progress.SetLabel('')
+        
+        col = event.GetCol()
+        row = event.GetRow()
+        if col == 0 or col == 3:
+            file = self.gc_files.GetCellValue(row, col)
+            st = self.gc_files.GetCellValue(row, 2)
+            if len(file)!=0:
+                if col!=0 or st != ST_DD:
+                    dlg = wx.MessageDialog(None, 'Do you want to play file:\n"{}"?'.format(file),'Launch Video Player',wx.YES_NO | wx.ICON_QUESTION)
+                    result = dlg.ShowModal()
+                    if result == wx.ID_YES:
+                        status = launchPlayer(file=file)
+                        if status != 0:
+                            wx.MessageBox('Error launching Video Player', 'Error', wx.OK|wx.ICON_ERROR)
         event.Skip()
 
 # end of class MyVCT
