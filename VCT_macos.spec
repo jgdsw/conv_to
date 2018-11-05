@@ -5,7 +5,7 @@ block_cipher = None
 
 a = Analysis(['vct.py'],
              pathex=['/Users/jgd/repos/conv_to'],
-             binaries=[('bin/ffmpeg', 'bin'), ('bin/ffprobe', 'bin')],
+             binaries=[('bin/ffmpeg', 'bin'), ('bin/ffprobe', 'bin'), ('bin/ffplay', 'bin')],
              datas=[],
              hiddenimports=[],
              hookspath=[],

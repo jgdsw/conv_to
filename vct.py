@@ -92,18 +92,20 @@ def fmt_deltatime (tdelta):
 
 #-------------------------------------------------------------------------------
 
-def playFile (file):
+def playFile (file, bin_path, title):
     launcher = {
-        'WINDOWS': 'start "CMD" "{}"',
-        'MACOSX': 'open "{}"',
-        'LINUX': 'xdg-open "{}"'
+        'WINDOWS': '{}\\ffplay -window_title "{}" -i"{}"',
+        'MACOSX': '{}/ffplay -window_title "{}" -i "{}"',
+        'LINUX': 'ffplay -window_title "{}" -i "{}"'
     }
     try:
-        cmd = launcher[c.OS()].format(file)
-        try:
-            os.startfile(file)
-        except AttributeError:
-            st, out, err = conv_to.exec_command(cmd, get_stdout=False, get_stderr=False)
+        if c.OS() == 'LINUX':
+            cmd = launcher['LINUX'].format(title, file)
+        else:
+            cmd = launcher[c.OS()].format(bin_path, title, file)
+
+        st, out, err = conv_to.exec_command(cmd, get_stdout=False, get_stderr=False)
+
     except SystemExit as exit:
         if exit.code != 0:
             print('*** Play Run-Time Error: [{}]'.format(exit.code))
@@ -112,8 +114,8 @@ def playFile (file):
 
 #-------------------------------------------------------------------------------
  
-def launchPlayer (file):
-    child = Process(target=playFile, args=(file,))
+def launchPlayer (file, bin_path, title):
+    child = Process(target=playFile, args=(file, bin_path, title))
     child.start()
     return (0)
 
@@ -383,7 +385,7 @@ class MyVCT(wx.Frame):
         # begin wxGlade: MyVCT.__init__
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
-        self.SetSize((1058, 800))
+        self.SetSize((1058, 722))
         
         # Menu Bar
         self.VCT_menubar = wx.MenuBar()
@@ -803,20 +805,21 @@ class MyVCT(wx.Frame):
         #    self.text_ctrl_log.SetValue('')
         #    self.gauge.SetValue(0)
         #    self.label_progress.SetLabel('')
-        #
-        #col = event.GetCol()
-        #row = event.GetRow()
-        #if col == 0 or col == 3:
-        #    file = self.gc_files.GetCellValue(row, col)
-        #    st = self.gc_files.GetCellValue(row, 2)
-        #    if len(file)!=0:
-        #        if col!=0 or st != ST_DD:
-        #            dlg = wx.MessageDialog(None, 'Do you want to play file:\n"{}"?'.format(file),'Launch Video Player',wx.YES_NO | wx.ICON_QUESTION)
-        #            result = dlg.ShowModal()
-        #            if result == wx.ID_YES:
-        #                status = launchPlayer(file=file)
-        #                if status != 0:
-        #                    wx.MessageBox('Error launching Video Player', 'Error', wx.OK|wx.ICON_ERROR)
+        
+        col = event.GetCol()
+        row = event.GetRow()
+        if col == 0 or col == 3:
+            file = self.gc_files.GetCellValue(row, col)
+            st = self.gc_files.GetCellValue(row, 2)
+            if len(file)!=0:
+                if col!=0 or st != ST_DD:
+                    dlg = wx.MessageDialog(None, 'Do you want to play file:\n"{}"?'.format(file),'Launch Video Player',wx.YES_NO | wx.ICON_QUESTION)
+                    result = dlg.ShowModal()
+                    if result == wx.ID_YES:
+                        title = '{} - Player'.format(VCT_TITLE)
+                        status = launchPlayer(file=file, bin_path=self.CMDROOT, title=title)
+                        if status != 0:
+                            wx.MessageBox('Error launching Video Player', 'Error', wx.OK|wx.ICON_ERROR)
         event.Skip()
 
 # end of class MyVCT

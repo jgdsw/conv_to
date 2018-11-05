@@ -15,7 +15,7 @@ SRC = 'vct'
 def build_MACOSX (ver):
     c.system('hdiutil detach "/Volumes/Installer"')
     c.system('hdiutil detach "/Volumes/{}v{} Installer"'.format(APP, ver))
-    #pyinstaller --onefile --windowed --add-binary bin/ffmpeg:bin --add-binary bin/ffprobe:bin --icon SRC.icns SRC.py -n APP
+    #pyinstaller --onefile --windowed --add-binary bin/ffmpeg:bin --add-binary bin/ffprobe:bin --add-binary bin/ffplay:bin --icon SRC.icns SRC.py -n APP
     c.call('pyinstaller {}_macos.spec'.format(APP))
     c.call('cp ./Installer.dmg.disk tmp.dmg')
     c.call('hdiutil attach ./tmp.dmg')
@@ -39,7 +39,7 @@ def build_WINDOWS (ver):
     arch, wfam = p.architecture()
     exe = '{}.exe'.format(APP)
 
-    c.call('pyinstaller --onefile --windowed --add-binary bin\\ffmpeg.exe;bin --add-binary bin\\ffprobe.exe;bin --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
+    c.call('pyinstaller --onefile --windowed --add-binary bin\\ffmpeg.exe;bin --add-binary bin\\ffprobe.exe;bin --add-binary bin\\ffplay.exe;bin --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
     c.call('copy .\\dist\\{} .'.format(exe))
     zipfile = '{}v{}-{}-{}.zip'.format(APP, ver, wfam, arch)
     try:
