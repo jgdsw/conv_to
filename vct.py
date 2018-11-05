@@ -94,7 +94,7 @@ def fmt_deltatime (tdelta):
 
 def playFile (file, bin_path, title):
     launcher = {
-        'WINDOWS': '{}\\ffplay -window_title "{}" -i"{}"',
+        'WINDOWS': '{}\\ffplay -window_title "{}" -i "{}"',
         'MACOSX': '{}/ffplay -window_title "{}" -i "{}"',
         'LINUX': 'ffplay -window_title "{}" -i "{}"'
     }
