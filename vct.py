@@ -105,7 +105,7 @@ def playFile (file, bin_path, title, external):
     if external == True:
         try:
             cmd = external_player[c.OS()].format(file)
-            st, out, err = conv_to.exec_command(cmd, get_stdout=False, get_stderr=False)
+            st, out, err = c.exec(cmd, get_stdout=False, get_stderr=False)
         except KeyboardInterrupt:
             pass
         except SystemExit:
@@ -118,7 +118,7 @@ def playFile (file, bin_path, title, external):
                 cmd = embedded_player['LINUX'].format(title, file)
             else:
                 cmd = embedded_player[c.OS()].format(bin_path, title, file)
-            st, out, err = conv_to.exec_command(cmd, get_stdout=False, get_stderr=False)
+            st, out, err = c.exec(cmd, get_stdout=False, get_stderr=False)
         except KeyboardInterrupt:
             pass
         except SystemExit:
