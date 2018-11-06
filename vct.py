@@ -23,7 +23,6 @@ import types
 import conv_to
 from cmdscript import SThread
 import cmdscript as c
-from multiprocessing import Process
 
 #-------------------------------------------------------------------------------
 
@@ -33,7 +32,7 @@ VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
-VCT_TITLE = 'Video Conversion Tool [VCT] v3.2.0'
+VCT_TITLE = 'Video Conversion Tool [VCT] v3.2.2'
 
 ST_QU = 'On Queue'
 ST_JB = 'On JOB'
@@ -92,32 +91,63 @@ def fmt_deltatime (tdelta):
 
 #-------------------------------------------------------------------------------
 
-def playFile (file, bin_path, title):
-    launcher = {
-        'WINDOWS': '{}\\ffplay -window_title "{}" -i "{}"',
+def playFile (file, bin_path, title, external):
+    embedded_player = {
+        'WINDOWS': '{}\\ffplay.exe -window_title "{}" -i "{}"',
         'MACOSX': '{}/ffplay -window_title "{}" -i "{}"',
         'LINUX': 'ffplay -window_title "{}" -i "{}"'
     }
-    try:
-        if c.OS() == 'LINUX':
-            cmd = launcher['LINUX'].format(title, file)
-        else:
-            cmd = launcher[c.OS()].format(bin_path, title, file)
-
-        st, out, err = conv_to.exec_command(cmd, get_stdout=False, get_stderr=False)
-
-    except SystemExit as exit:
-        if exit.code != 0:
-            print('*** Play Run-Time Error: [{}]'.format(exit.code))
-    except Exception as exc:
-        print('*** Play Run-Time Exception: [{}]'.format(exc))
+    external_player = {
+        'WINDOWS': 'start "CMD" "{}"',
+        'MACOSX': 'open "{}"',
+        'LINUX': 'xdg-open "{}"'
+    }
+    if external == True:
+        try:
+            cmd = external_player[c.OS()].format(file)
+            st, out, err = conv_to.exec_command(cmd, get_stdout=False, get_stderr=False)
+        except KeyboardInterrupt:
+            pass
+        except SystemExit:
+            pass
+        except Exception as exc:
+            print('*** Player Run-Time Exception: [{}]'.format(exc))
+    else:
+        try:
+            if c.OS() == 'LINUX':
+                cmd = embedded_player['LINUX'].format(title, file)
+            else:
+                cmd = embedded_player[c.OS()].format(bin_path, title, file)
+            st, out, err = conv_to.exec_command(cmd, get_stdout=False, get_stderr=False)
+        except KeyboardInterrupt:
+            pass
+        except SystemExit:
+            pass
+        except Exception as exc:
+            print('*** Player Run-Time Exception: [{}]'.format(exc))
 
 #-------------------------------------------------------------------------------
- 
-def launchPlayer (file, bin_path, title):
-    child = Process(target=playFile, args=(file, bin_path, title))
-    child.start()
-    return (0)
+
+def launchPlayer (players, file, bin_path, title, external):
+    try:
+        player = SThread(target=playFile, args=(file, bin_path, title, external), daemon=True)
+        player.start()
+        players.append(player)
+        return (0)
+    except KeyboardInterrupt:
+        pass
+    except SystemExit:
+        pass
+    except Exception as exc:
+        print('*** Run-Time Exception (launching player): [{}]'.format(exc))
+
+#-------------------------------------------------------------------------------
+
+def killPlayers (players):
+    for player in players:
+        player.stop(keyboard_interrupt=True)
+        player.stop()
+    players = []
 
 #-------------------------------------------------------------------------------
 
@@ -129,7 +159,7 @@ def convertFiles (params, sender):
         # File to file coversion
         for index, file in params.files:
             wx.CallAfter(dispatcher.send, signal=VCT_INIT, sender=sender, row=index)
-   
+
             filename = ''
             status = 9999
             elapsed = ''
@@ -148,7 +178,7 @@ def convertFiles (params, sender):
                     filename = ''
 
             except Exception as exc:
-                print('!!! THR-convert: Run-Time Exception: [{}]'.format(exc))            
+                print('!!! THR-convert: Run-Time Exception: [{}]'.format(exc))
 
             finally:
                 wx.CallAfter(dispatcher.send, signal=VCT_PROG, sender=sender, increment=(index, filename, params.delete, status, elapsed))
@@ -175,7 +205,7 @@ def convertFiles (params, sender):
             elapsed = fmt_deltatime(elapsed_time)
 
         except Exception as exc:
-            print('!!! THR-join: Run-Time Exception: [{}]'.format(exc)) 
+            print('!!! THR-join: Run-Time Exception: [{}]'.format(exc))
 
         finally:
             for index, file in files_vct:
@@ -224,7 +254,7 @@ def vct_run_thread (params, sender):
 #-------------------------------------------------------------------------------
 
 def SignalStart (sender, row):
-    if sender.CONVERTING:    
+    if sender.CONVERTING:
         sender.gc_files.SetCellValue(row, 2, ST_CO)
         sender.gc_files.SetCellTextColour(row, 2, wx.YELLOW)
         sender.gc_files.SetCellBackgroundColour(row, 2, wx.BLACK)
@@ -251,18 +281,18 @@ def SignalProgress(sender, increment):
         delete = increment[2]
         status = increment[3]
         elapsed = increment[4]
-    
+
         sender.done = sender.done + cellOriginalSize(sender.gc_files.GetCellValue(index, 1))
         perc=(sender.done/sender.total)*100
-    
+
         sender.label_progress.SetLabel('{:.0f}%'.format(perc))
-        sender.gauge.SetValue(perc)   
-    
+        sender.gauge.SetValue(perc)
+
         if status != 0:
             done = ST_ER
             sender.gc_files.SetCellTextColour(index, 2, wx.WHITE)
             sender.gc_files.SetCellBackgroundColour(index, 2, wx.RED)
-    
+
         else:
             if delete:
                 done = ST_DD
@@ -270,15 +300,15 @@ def SignalProgress(sender, increment):
                 sender.gc_files.SetCellTextColour(index, 0, del_color)
                 sender.gc_files.SetCellTextColour(index, 2, wx.BLACK)
                 sender.gc_files.SetCellBackgroundColour(index, 2, wx.GREEN)
-    
+
             else:
                 done = ST_DN
                 sender.gc_files.SetCellTextColour(index, 0, wx.BLACK)
                 sender.gc_files.SetCellTextColour(index, 2, wx.BLACK)
                 sender.gc_files.SetCellBackgroundColour(index, 2, wx.GREEN)
-    
+
         sender.gc_files.SetCellValue(index, 2, done)
-    
+
         if status == 0:
             sender.gc_files.SetCellValue(index, 3, file)
             sender.gc_files.SetCellValue(index, 4, '{:.2f} MB'.format(conv_to.show_file_size(file, verbose=False)))
@@ -386,7 +416,7 @@ class MyVCT(wx.Frame):
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
         self.SetSize((1058, 722))
-        
+
         # Menu Bar
         self.VCT_menubar = wx.MenuBar()
         self.SetMenuBar(self.VCT_menubar)
@@ -424,7 +454,7 @@ class MyVCT(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.convertFiles, self.button_OK)
         # end wxGlade
 
-        # Exit Events 
+        # Exit Events
         self.Bind(wx.EVT_CLOSE, self.ExitApp)
         self.Bind(wx.EVT_WINDOW_DESTROY, self.DestroyApp)
 
@@ -450,7 +480,7 @@ class MyVCT(wx.Frame):
             self.text_ctrl_log.SetFont(wx.Font(9, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
         else:
             self.SetBackgroundColour(wx.NullColour)
-            self.text_ctrl_log.SetFont(wx.Font(9, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))            
+            self.text_ctrl_log.SetFont(wx.Font(9, wx.MODERN, wx.NORMAL, wx.NORMAL, 0, "Courier"))
 
         self.done =  0.0
         self.total = 0.0
@@ -458,6 +488,7 @@ class MyVCT(wx.Frame):
         self.gauge.SetValue(0)
         self.CONVERTING = False
         self.thrJOB = None
+        self.Players = []
 
         # Redirect STDOUT/STDERR
         redir=RedirectText(self.text_ctrl_log)
@@ -581,7 +612,7 @@ class MyVCT(wx.Frame):
         self.gc_files.SetColSize(2, col_status)
         self.gc_files.SetColSize(4, col_osize)
         self.gc_files.SetColSize(5, col_etime)
-        
+
         assigned = col_size + col_status + col_osize + col_etime + scroll + label_row + padding
         shared = width - assigned
 
@@ -597,6 +628,7 @@ class MyVCT(wx.Frame):
     def ExitApp(self, event):  # wxGlade: MyVCT.<event_handler>
         # kill all children
         conv_to.kill_proctree()
+        killPlayers(self.Players)
         if self.thrJOB != None:
             self.thrJOB.stop()
         self.Destroy()
@@ -605,6 +637,7 @@ class MyVCT(wx.Frame):
     def DestroyApp(self, event):  # wxGlade: MyVCT.<event_handler>
         # kill all children
         conv_to.kill_proctree()
+        killPlayers(self.Players)
         if self.thrJOB != None:
             self.thrJOB.stop()
         event.Skip()
@@ -719,7 +752,7 @@ class MyVCT(wx.Frame):
             self.gauge.SetValue(0)
             self.label_progress.SetLabel('')
             wx.MessageBox('Conversion queue is empty', 'Warning', wx.OK|wx.ICON_WARNING)
- 
+
         event.Skip()
 
     def stopConvertJOB(self, event):  # wxGlade: MyVCT.<event_handler>
@@ -728,15 +761,15 @@ class MyVCT(wx.Frame):
             conv_to.sep()
             print('*** VCT: Interrupting JOB...')
             self.CONVERTING=False
-    
+
             # kill all children
             conv_to.kill_proctree()
-            
+
             if self.thrJOB != None:
                 stopped = self.thrJOB.stop(True)
                 if not stopped:
                     stopped = self.thrJOB.stop()
-    
+
                 if stopped:
                     del self.thrJOB
                     self.thrJOB = None
@@ -755,9 +788,9 @@ class MyVCT(wx.Frame):
                     self.button_4.Enable()
                 else:
                     print('*** VCT conversion JOB NOT stopped (unable to terminate thread) ***')
-    
+
             print('*** VCT: Stop Finished')
-    
+
         event.Skip()
 
     def containerSelected(self, event):  # wxGlade: MyVCT.<event_handler>
@@ -805,7 +838,6 @@ class MyVCT(wx.Frame):
         #    self.text_ctrl_log.SetValue('')
         #    self.gauge.SetValue(0)
         #    self.label_progress.SetLabel('')
-        
         col = event.GetCol()
         row = event.GetRow()
         if col == 0 or col == 3:
@@ -813,11 +845,18 @@ class MyVCT(wx.Frame):
             st = self.gc_files.GetCellValue(row, 2)
             if len(file)!=0:
                 if col!=0 or st != ST_DD:
-                    dlg = wx.MessageDialog(None, 'Do you want to play file:\n"{}"?'.format(file),'Launch Video Player',wx.YES_NO | wx.ICON_QUESTION)
+                    dlg = wx.MessageDialog(None,
+                                           '{}\n\nDo you want to launch external player?'.format(file),
+                                           'Video Player',
+                                           wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION)
                     result = dlg.ShowModal()
-                    if result == wx.ID_YES:
+                    if result == wx.ID_YES or result == wx.ID_NO:
                         title = '{} - Player'.format(VCT_TITLE)
-                        status = launchPlayer(file=file, bin_path=self.CMDROOT, title=title)
+                        if result == wx.ID_YES:
+                            ext_player = True
+                        else:
+                            ext_player = False
+                        status = launchPlayer(players=self.Players, file=file, bin_path=self.CMDROOT, title=title, external=ext_player)
                         if status != 0:
                             wx.MessageBox('Error launching Video Player', 'Error', wx.OK|wx.ICON_ERROR)
         event.Skip()
