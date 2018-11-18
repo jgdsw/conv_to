@@ -1,4 +1,4 @@
-find . -name '*.flv' -type f -print0 | sort -z | xargs -0 conv_to.py -d -r std
-find . -name '*.mpg' -type f -print0 | sort -z | xargs -0 conv_to.py -d -r std
-find . -name '*.avi' -type f -print0 | sort -z | xargs -0 conv_to.py -d -r std
-find . -name '*.mkv' -type f -print0 | sort -z | xargs -0 conv_to.py -d -r std
+find . -name '*.flv' -type f -print0 | sort -z | xargs -0 -n 1 conv_to.py -d -r std
+find . -name '*.mpg' -type f -print0 | sort -z | xargs -0 -n 1 conv_to.py -d -r std
+find . -name '*.avi' -type f -print0 | sort -z | xargs -0 -n 1 conv_to.py -d -r std
+find . -name '*.mkv' -type f -print0 | sort -z | xargs -0 -n 1 conv_to.py -d -r std

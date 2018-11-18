@@ -1,2 +1,2 @@
-find . -name '*.mp3' -type f -print0 | sort -z | xargs -0 conv_to.py -d -c m4a
-find . -name '*.MP3' -type f -print0 | sort -z | xargs -0 conv_to.py -d -c m4a
+find . -name '*.mp3' -type f -print0 | sort -z | xargs -0 -n 1 conv_to.py -d -c m4a
+find . -name '*.MP3' -type f -print0 | sort -z | xargs -0 -n 1 conv_to.py -d -c m4a
