@@ -32,7 +32,7 @@ VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
-VCT_TITLE = 'Video Conversion Tool [VCT] v3.2.2'
+VCT_TITLE = 'Video Conversion Tool [VCT] v3.2.4'
 
 ST_QU = 'On Queue'
 ST_JB = 'On JOB'
@@ -271,6 +271,8 @@ def SignalDone(sender, status):
         sender.button_join_to.Enable()
         sender.button_3.Enable()
         sender.button_4.Enable()
+        sender.button_CC.Enable()
+        sender.button_CS.Enable()
 
 #-------------------------------------------------------------------------------
 
@@ -416,14 +418,16 @@ class MyVCT(wx.Frame):
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
         self.SetSize((1058, 722))
-
+        
         # Menu Bar
         self.VCT_menubar = wx.MenuBar()
         self.SetMenuBar(self.VCT_menubar)
         # Menu Bar end
         self.gc_files = wx.grid.Grid(self, wx.ID_ANY, size=(1, 1))
-        self.button_3 = wx.Button(self, wx.ID_ANY, "Clean files")
-        self.button_4 = wx.Button(self, wx.ID_ANY, "Select files")
+        self.button_3 = wx.Button(self, wx.ID_ANY, "Clean All")
+        self.button_CC = wx.Button(self, wx.ID_ANY, "Clean Completed")
+        self.button_CS = wx.Button(self, wx.ID_ANY, "Clean Selected")
+        self.button_4 = wx.Button(self, wx.ID_ANY, "Select Video Files")
         self.ch_delete = wx.CheckBox(self, wx.ID_ANY, "Delete originals", style=wx.CHK_2STATE)
         self.ch_tag = wx.CheckBox(self, wx.ID_ANY, "Tag video file", style=wx.CHK_2STATE)
         self.ch_ns = wx.CheckBox(self, wx.ID_ANY, "No subtitles", style=wx.CHK_2STATE)
@@ -433,10 +437,11 @@ class MyVCT(wx.Frame):
         self.cb_container = wx.ComboBox(self, wx.ID_ANY, choices=["mp3", "m4a", "ogg", "avi", "mp4", "mkv"], style=wx.CB_DROPDOWN)
         self.cb_fps = wx.ComboBox(self, wx.ID_ANY, choices=["input", "24", "23.98", "25", "29.97", "30", "50", "59.94", "60"], style=wx.CB_DROPDOWN)
         self.cb_resolution = wx.ComboBox(self, wx.ID_ANY, choices=["input", "std", "VCD", "DVD", "HD", "FHD", "UHD", "DCI"], style=wx.CB_DROPDOWN)
-        self.button_join_to = wx.Button(self, wx.ID_ANY, "Join to file")
+        self.button_join_to = wx.Button(self, wx.ID_ANY, "Join To Output Video File")
         self.join_to = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_READONLY)
         self.label_progress = wx.StaticText(self, wx.ID_ANY, "", style=wx.ALIGN_RIGHT)
         self.gauge = wx.Gauge(self, wx.ID_ANY, 100)
+        self.button_RF = wx.Button(self, wx.ID_ANY, "Retry Failed")
         self.button_STOP = wx.Button(self, wx.ID_ANY, "Stop JOB")
         self.button_OK = wx.Button(self, wx.ID_ANY, "Start JOB")
         self.text_ctrl_log = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.HSCROLL | wx.TE_MULTILINE | wx.TE_READONLY)
@@ -447,9 +452,12 @@ class MyVCT(wx.Frame):
         self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_CLICK, self.cellSelected, self.gc_files)
         self.Bind(wx.grid.EVT_GRID_CMD_CELL_LEFT_DCLICK, self.cellPlay, self.gc_files)
         self.Bind(wx.EVT_BUTTON, self.cleanFiles, self.button_3)
+        self.Bind(wx.EVT_BUTTON, self.cleanCompleted, self.button_CC)
+        self.Bind(wx.EVT_BUTTON, self.cleanSelected, self.button_CS)
         self.Bind(wx.EVT_BUTTON, self.selectFiles, self.button_4)
         self.Bind(wx.EVT_COMBOBOX, self.containerSelected, self.cb_container)
         self.Bind(wx.EVT_BUTTON, self.outputFolder, self.button_join_to)
+        self.Bind(wx.EVT_BUTTON, self.retryFailed, self.button_RF)
         self.Bind(wx.EVT_BUTTON, self.stopConvertJOB, self.button_STOP)
         self.Bind(wx.EVT_BUTTON, self.convertFiles, self.button_OK)
         # end wxGlade
@@ -558,6 +566,8 @@ class MyVCT(wx.Frame):
         grid_sizer_2 = wx.BoxSizer(wx.HORIZONTAL)
         sizer_files.Add(self.gc_files, 1, wx.ALL | wx.EXPAND, 5)
         grid_sizer_2.Add(self.button_3, 0, wx.ALL, 5)
+        grid_sizer_2.Add(self.button_CC, 0, wx.ALL, 5)
+        grid_sizer_2.Add(self.button_CS, 0, wx.ALL, 5)
         grid_sizer_2.Add((20, 20), 9, wx.EXPAND, 0)
         grid_sizer_2.Add(self.button_4, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
         sizer_files.Add(grid_sizer_2, 0, wx.EXPAND, 0)
@@ -584,6 +594,7 @@ class MyVCT(wx.Frame):
         self.sizer_app.Add(self.sizer_join, 0, wx.ALL | wx.EXPAND, 4)
         self.sizer_buttons.Add(self.label_progress, 0, wx.ALL, 5)
         self.sizer_buttons.Add(self.gauge, 9, wx.ALL | wx.EXPAND, 5)
+        self.sizer_buttons.Add(self.button_RF, 0, wx.ALL, 5)
         self.sizer_buttons.Add(self.button_STOP, 0, wx.ALIGN_RIGHT | wx.ALL | wx.EXPAND, 5)
         self.sizer_buttons.Add(self.button_OK, 0, wx.ALIGN_RIGHT | wx.ALL | wx.EXPAND, 5)
         self.sizer_app.Add(self.sizer_buttons, 0, wx.ALL | wx.EXPAND, 4)
@@ -747,6 +758,8 @@ class MyVCT(wx.Frame):
                 self.button_join_to.Disable()
                 self.button_3.Disable()
                 #self.button_4.Disable()
+                self.button_CC.Disable()
+                self.button_CS.Disable()
         else:
             self.text_ctrl_log.SetValue('')
             self.gauge.SetValue(0)
@@ -768,6 +781,9 @@ class MyVCT(wx.Frame):
             if self.thrJOB != None:
                 stopped = self.thrJOB.stop(True)
                 if not stopped:
+                    conv_to.kill_proctree()
+                    conv_to.kill_proctree()
+                    self.thrJOB.stop()
                     stopped = self.thrJOB.stop()
 
                 if stopped:
@@ -786,6 +802,8 @@ class MyVCT(wx.Frame):
                     self.button_join_to.Enable()
                     self.button_3.Enable()
                     self.button_4.Enable()
+                    self.button_CC.Enable()
+                    self.button_CS.Enable()
                 else:
                     print('*** VCT conversion JOB NOT stopped (unable to terminate thread) ***')
 
@@ -859,6 +877,38 @@ class MyVCT(wx.Frame):
                         status = launchPlayer(players=self.Players, file=file, bin_path=self.CMDROOT, title=title, external=ext_player)
                         if status != 0:
                             wx.MessageBox('Error launching Video Player', 'Error', wx.OK|wx.ICON_ERROR)
+        event.Skip()
+
+    def cleanCompleted(self, event):  # wxGlade: MyVCT.<event_handler>
+        lst = self.gc_files.GetNumberRows()
+        selected = []
+        for r in range(lst):
+            status = self.gc_files.GetCellValue(r, 2)
+            if status == ST_DN or status == ST_DD:
+                selected.append(r)
+        selected.reverse()
+        for r in selected:
+            self.gc_files.DeleteRows(r,1)
+        event.Skip()
+
+    def cleanSelected(self, event):  # wxGlade: MyVCT.<event_handler>
+        lst = self.gc_files.GetNumberRows()
+        selected = []
+        for r in range(lst):
+            if self.gc_files.IsInSelection(r, 0) == True:
+                selected.append(r)
+        selected.reverse()
+        for r in selected:
+            self.gc_files.DeleteRows(r,1)
+        event.Skip()
+
+    def retryFailed(self, event):  # wxGlade: MyVCT.<event_handler>
+        for ind in range(0,self.gc_files.GetNumberRows()):
+            status = self.gc_files.GetCellValue(ind, 2)
+            if status == ST_ER:
+                self.gc_files.SetCellValue(ind, 2, ST_QU)
+                self.gc_files.SetCellBackgroundColour(ind, 2, wx.BLUE)
+                self.gc_files.SetCellTextColour(ind, 2, wx.WHITE)
         event.Skip()
 
 # end of class MyVCT
