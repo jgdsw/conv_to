@@ -498,7 +498,7 @@ def get_subs_streams (file, options, args, info=False):
 def timerShowOutputFileSize (file_out):
     date = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
     size = show_file_size(file_out, verbose=False)
-    print ('{}: [{}] -> {:.2f} MB ...          '.format(date, file_out, size))
+    print ('{}: [{}] -> {:.2f} MB ...                    '.format(date, file_out, size))
 
 #-------------------------------------------------------------------------------
 
