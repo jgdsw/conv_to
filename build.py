@@ -39,18 +39,28 @@ def build_WINDOWS (ver):
     arch, wfam = p.architecture()
     exe = '{}.exe'.format(APP)
 
-    c.call('pyinstaller --onefile --windowed --add-binary bin\\ffmpeg.exe;bin --add-binary bin\\ffprobe.exe;bin --add-binary bin\\ffplay.exe;bin --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
-    c.call('copy .\\dist\\{} .'.format(exe))
-    zipfile = '{}v{}-{}-{}.zip'.format(APP, ver, wfam, arch)
-    try:
-        Zip = z.ZipFile (zipfile, mode='w', compression=z.ZIP_DEFLATED)
-    except:
-        print ('Zlib not available. Switching to uncompressed Zip file.')
-        Zip = z.ZipFile (zipfile, mode='w', compression=z.ZIP_STORED)
-    
-    Zip.write(exe)
-    Zip.close()
-    c.rm_file(exe)
+    OK = True
+
+    if arch == '32bit':
+        c.call('pyinstaller --onefile --windowed --add-binary bin_win32\\ffmpeg.exe;bin --add-binary bin_win32\\ffprobe.exe;bin --add-binary bin_win32\\ffplay.exe;bin --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
+    elif arch == '64bit':
+        c.call('pyinstaller --onefile --windowed --add-binary bin_win64\\ffmpeg.exe;bin --add-binary bin_win64\\ffprobe.exe;bin --add-binary bin_win64\\ffplay.exe;bin --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
+    else:
+        OK = False
+        print ('*** Error: Unsupported Windows architecture [{}]'.format(arch))
+
+    if OK:
+        c.call('copy .\\dist\\{} .'.format(exe))
+        zipfile = '{}v{}-{}-{}.zip'.format(APP, ver, wfam, arch)
+        try:
+            Zip = z.ZipFile (zipfile, mode='w', compression=z.ZIP_DEFLATED)
+        except:
+            print ('Zlib not available. Switching to uncompressed Zip file.')
+            Zip = z.ZipFile (zipfile, mode='w', compression=z.ZIP_STORED)
+        
+        Zip.write(exe)
+        Zip.close()
+        c.rm_file(exe)
 
 #-------------------------------------------------------------------------------
 

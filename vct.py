@@ -23,16 +23,19 @@ import types
 import conv_to
 from cmdscript import SThread
 import cmdscript as c
+import platform
 
 #-------------------------------------------------------------------------------
 
 BIN = 'bin'
+BIN_W32 = 'bin_win32'
+BIN_W64 = 'bin_win64'
 
 VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
-VCT_TITLE = 'Video Conversion Tool [VCT] v3.2.4'
+VCT_TITLE = 'Video Conversion Tool [VCT] v3.3.0'
 
 ST_QU = 'On Queue'
 ST_JB = 'On JOB'
@@ -510,7 +513,17 @@ class MyVCT(wx.Frame):
 
         # Commands root path
         if p == 'WINDOWS' or p == 'MACOSX':
-            self.CMDROOT = os.path.join(resource_path(), BIN, '')
+            if p == 'MACOSX':
+                self.CMDROOT = os.path.join(resource_path(), BIN, '')
+            else:
+                arch, wfam = platform.architecture()
+                if arch == '32bit':
+                    self.CMDROOT = os.path.join(resource_path(), BIN_W32, '')    
+                elif arch == '64bit':
+                    self.CMDROOT = os.path.join(resource_path(), BIN_W64, '')
+                else:
+                    self.CMDROOT = ''
+                    print('*** Unsupported Windows architecture [{}]***'.format(arch))
         else:
             self.CMDROOT = ''
             print('*** VCT needs ffmpeg/ffprobe command tools installed on your system ***')
