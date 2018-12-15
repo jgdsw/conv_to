@@ -42,9 +42,9 @@ def build_WINDOWS (ver):
     OK = True
 
     if arch == '32bit':
-        c.call('pyinstaller --onefile --windowed --add-binary bin_win32\\ffmpeg.exe;bin --add-binary bin_win32\\ffprobe.exe;bin --add-binary bin_win32\\ffplay.exe;bin --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
+        c.call('pyinstaller --onefile --windowed --add-binary bin_win32\\ffmpeg.exe;bin_win32 --add-binary bin_win32\\ffprobe.exe;bin_win32 --add-binary bin_win32\\ffplay.exe;bin_win32 --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
     elif arch == '64bit':
-        c.call('pyinstaller --onefile --windowed --add-binary bin_win64\\ffmpeg.exe;bin --add-binary bin_win64\\ffprobe.exe;bin --add-binary bin_win64\\ffplay.exe;bin --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
+        c.call('pyinstaller --onefile --windowed --add-binary bin_win64\\ffmpeg.exe;bin_win64 --add-binary bin_win64\\ffprobe.exe;bin_win64 --add-binary bin_win64\\ffplay.exe;bin_win64 --icon {}.ico {}.py -n {}'.format(SRC, SRC, APP))
     else:
         OK = False
         print ('*** Error: Unsupported Windows architecture [{}]'.format(arch))
