@@ -35,7 +35,7 @@ VCT_DONE = 'VCT_SIGNAL_DONE'
 VCT_PROG = 'VCT_SIGNAL_PROGRESS'
 VCT_INIT = 'VCT_SIGNAL_START'
 
-VCT_TITLE = 'Video Conversion Tool [VCT] v3.3.0'
+VCT_TITLE = 'Video Conversion Tool [VCT] v3.3.2'
 
 ST_QU = 'On Queue'
 ST_JB = 'On JOB'
