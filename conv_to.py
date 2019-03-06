@@ -15,44 +15,7 @@ import types
 from cmdscript import ExtendedTimer
 import datetime
 import psutil
-
-#-------------------------------------------------------------------------------
-
-def sep(header=''):
-    """Writes separator on stdout adding a header if requested"""
-    print('-------------------------------------------------------------------------------')
-    if header != '':
-        print(header)
-
-#-------------------------------------------------------------------------------
-
-def delete_file (file):
-    if os.path.isfile(file) and os.access(file, os.R_OK):
-        try:
-            os.remove(file)
-        except OSError as err:
-            return False
-    return True
-
-#-------------------------------------------------------------------------------
-
-def get_files (file_pattern='*.*', verbose=False):
-    """Obtains and return a list of files from an specific file pattern"""
-    if verbose:
-        print('get_files: file_pattern:({})'.format(file_pattern))
-
-    file_list = []
-
-    for file in glob.glob(file_pattern):
-        file_list.append(file)
-
-    if len(file_list) == 0:
-        file_list = [file_pattern]
-
-    if verbose:
-        print('get_files: file_list:({})'.format(file_list))
-
-    return file_list
+import cmdscript as c
 
 #-------------------------------------------------------------------------------
 
@@ -89,145 +52,70 @@ def kill_proctree (pid=None, include_parent=False, timeout=5):
 
 #-------------------------------------------------------------------------------
 
-def exec_command (cmd, get_stdout=True, get_stderr=False, file_stdin='', file_stdout='', file_stderr='', exit=False, verbose=False):
-    """Executes a given command. Returns the status completion, stdout and stderr of the command"""
-    if verbose:
-        print('exec:({})'.format(cmd))
-
-    stdin_run = None
-    stdout_run = None
-    stderr_run = None
-
-    if file_stdin != '':
-        stdin_run = open(file_stdin, 'r')
-
-    if file_stdout != '':
-        get_stdout = False
-        stdout_run = open(file_stdout,'w')
-
-    if get_stdout:
-        stdout_run=subprocess.PIPE
-
-    if file_stderr != '':
-        get_stderr = False
-        stderr_run = open(file_stderr,'w')
-
-    if get_stderr:
-        stderr_run=subprocess.PIPE
-
-    startupinfo = None
-    if platform.system() == 'Windows' and not sys.stdout.isatty():
-        # Do not let console window pop-up briefly
-        # Avoid "WinError 6, Handle is invalid" on Windows
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = subprocess.SW_HIDE
-        if get_stdout == True:
-            if stdin_run == None:
-                stdin_run = subprocess.PIPE
-            if stderr_run == None:
-                stderr_run = subprocess.STDOUT
-        else:
-            stdout_run = subprocess.DEVNULL
-            if stdin_run == None:
-                stdin_run = subprocess.DEVNULL
-            if stderr_run == None:
-                stderr_run = subprocess.STDOUT
-
-    cp = subprocess.run(cmd, shell=True, stdin=stdin_run, stdout=stdout_run, stderr=stderr_run, startupinfo=startupinfo)
-
-    if file_stdin != '':
-        stdin_run.close()
-
-    if file_stdout != '':
-        stdout_run.close()
-
-    if file_stderr != '':
-        stderr_run.close()
-
-    if verbose:
-        print(cp)
-
-    # Output STDOUT stream if requested
-    try:
-        str_out = cp.stdout.decode('utf-8', 'replace')
-        out = str_out.splitlines()
-        out = _filter_out(out)
-        if len(out) != 0:
-            if out[-1] == '':
-                out=out[:-1]
-    except:
-        out = []
-
-    # Output STDERR stream if requested
-    try:
-        str_err = cp.stderr.decode('utf-8', 'replace')
-        err = str_err.splitlines()
-        err = _filter_out(err)
-        if len(err) != 0:
-            if err[-1] == '':
-                err=err[:-1]
-    except:
-        err = []
-
-    # Output return status
-    status = cp.returncode
-
-    if verbose:
-        print('status:({})\nstdout:({}, "{}")\nstderr:({}, "{}")'.format(status, out, file_stdout, err, file_stderr))
-
-    if exit:
-        if status != 0:
-            sys.exit('exec: Error [{}] executing ["{}"]'.format(status, cmd))
-
-    return status, out, err
-
-#-------------------------------------------------------------------------------
-
 def join_input_files (files, f_out, args):
-    global ffmpeg_join, info
+    global ffmpeg_join, info, exit_code
 
-    sep()
-
-    # Remove out file
-    if not delete_file(f_out):
-        sys.exit('\n!!! ERROR: Removing output file:{}'.format(f_out))
+    c.sep()
 
     # Create temporary file
     tmppath = '.conv_to.join.{}'.format(os.getpid())
 
     # Remove temporary file
-    if not delete_file(tmppath):
-        sys.exit('\n!!! ERROR: Removing temporary file:{}'.format(tmppath))
+    if c.rm_file(tmppath):
+        print('# Temp file:{} removed'.format(f_out))
 
     # Writing temporary file stream
     tmp = open(tmppath, 'w')
     for f in files:
-        print('file \'{}\''.format(f), file=tmp)
-        print('>>> Registering file [{}] ...'.format(f))
-    tmp.close()
+        print('file \'{}\''.format(f), file=tmp)      
+        print('# Registering file [{}]:'.format(f))
+        show_file_size(f)
+        show_file_duration(f, args)
+        c.sep()
+    tmp.close()   
 
     #exec_command ('cat {}'.format(tmppath), get_stdout=True, verbose=True)
 
-    T = ExtendedTimer(10, 0, False, timerShowOutputFileSize, f_out)
-    T.start()
+    # Remove out file
+    if c.rm_file(f_out):
+        print('# Output file:{} removed'.format(f_out))
+    else:
+        print('# Output file:{} do not exist (will be created)'.format(f_out))
+
+    c.sep()
+
+    # ffmpeg progress
+    #FFMPEG_PROGRESS = 0.0
+    #FFMPEG_DURATION = '00:00:00.000'
+    #FFMPEG_SIZE = 0.0
+
+    #T = ExtendedTimer(5, 0, False, timerShowOutputFileSize, f_out)
+    #T.start()
 
     try:
         # Command to join
         join_command = ffmpeg_join.format(args.bin, info[args.verbose], tmppath, f_out)
-        st, out, err = exec_command(join_command, get_stdout=False, verbose=args.verbose)
+        st, out, err = c.exec(join_command, verbose=args.verbose)
+        exit_code = st
+        if exit_code != 0:
+            print('!!! ERROR: Excuting command [{}] (exit code {})'.format(join_command, exit_code))
     finally:
-        T.cancel()
-        del T
+        #T.cancel()
+        #del T
+        pass
 
     # Remove temporary file
-    if not delete_file(tmppath):
-        sys.exit('\n!!! ERROR: Removing temporary file:{}'.format(tmppath))
+    if not c.rm_file(tmppath):
+        print('\n!!! ERROR: Removing temporary file:{}'.format(tmppath))
+
+    c.sep()
 
     # File Joined
     print('>>> Input files joined to: [{}]'.format(f_out))
 
-    sep()
+    get_file_info(f_out, args)
+
+    c.sep()
 
 #-------------------------------------------------------------------------------
 
@@ -240,12 +128,21 @@ def ToInt (value):
 
 #-------------------------------------------------------------------------------
 
+def ToFloat (value):
+    try:
+        ival=float(value)
+        return ival
+    except:
+        return 0.0
+
+#-------------------------------------------------------------------------------
+
 def get_video_streams (file, options, args, info=False):
     global ffprobe_video, video_resolution, video_container, stream_video_quality, \
            OV_stream, O_copy, rotate180, video_filters
 
     ffprobe_args = ffprobe_video.format(args.bin, file)
-    st, out, err = exec_command(ffprobe_args, verbose=args.verbose)
+    st, out, err = c.exec(ffprobe_args, get_stdout=True, verbose=args.verbose)
 
     header=False
 
@@ -350,7 +247,7 @@ def get_audio_streams (file, options, args, info=False):
     else:
         # Get audio streams info
         ffprobe_args = ffprobe_audio.format(args.bin, file)
-        st, out, err = exec_command(ffprobe_args, verbose=args.verbose)
+        st, out, err = c.exec(ffprobe_args, get_stdout=True, verbose=args.verbose)
 
         if st == 0:
 
@@ -429,7 +326,7 @@ def get_subs_streams (file, options, args, info=False):
     else:
         # Get audio streams info
         ffprobe_args = ffprobe_subs.format(args.bin, file)
-        st, out, err = exec_command(ffprobe_args, verbose=args.verbose)
+        st, out, err = c.exec(ffprobe_args, get_stdout=True, verbose=args.verbose)
 
         if st == 0:
 
@@ -496,9 +393,15 @@ def get_subs_streams (file, options, args, info=False):
 #-------------------------------------------------------------------------------
 
 def timerShowOutputFileSize (file_out):
-    date = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
-    size = show_file_size(file_out, verbose=False)
-    print ('{}: [{}] -> {:.2f} MB ...                    '.format(date, file_out, size))
+    global FFMPEG_PROGRESS, FFMPEG_DURATION, FFMPEG_SIZE
+
+    #date = datetime.datetime.now().strftime("%Y-%m-%d.%H:%M:%S.%f")
+    #size = show_file_size(file_out, verbose=False)
+
+    if FFMPEG_SIZE != 0.0:
+        print ('# [{}]: Time={}, Progress={:6.2f}%, Size={:.2f}MB'.format(os.path.basename(file_out), FFMPEG_DURATION, FFMPEG_PROGRESS, FFMPEG_SIZE))
+    else:
+        print ('# [{}]: Time={}, Progress={:6.2f}%'.format(os.path.basename(file_out), FFMPEG_DURATION, FFMPEG_PROGRESS))
 
 #-------------------------------------------------------------------------------
 
@@ -521,8 +424,90 @@ def show_file_size (file, verbose=True):
 
 #-------------------------------------------------------------------------------
 
+def show_file_duration (file, args, verbose=True):
+    comm = ffprobe_dur.format(args.bin, file)
+    st, out, err = c.exec(comm, get_stdout=True, verbose=args.verbose)
+
+    try:
+        auxi = out[0]
+        auxi = auxi.split(':')
+        seconds = (ToFloat(auxi[0])*3600.0) + (ToFloat(auxi[1])*60) + (ToFloat(auxi[2]))
+    except:
+        seconds = 0.0
+
+    if verbose:
+        print ('# Duration: {} ({} seconds)'.format(out, seconds))
+
+    return (seconds)
+
+#-------------------------------------------------------------------------------
+
+# Sample ffmpeg output:
+# frame= 9332 fps=1333 q=-1.0 size=   41472kB time=00:06:13.16 bitrate= 910.4kbits/s speed=53.3x
+# frame= 9965 fps=1328 q=-1.0 size=   42752kB time=00:06:38.48 bitrate= 878.9kbits/s speed=53.1x
+# size=   13056kB time=00:11:04.87 bitrate= 160.9kbits/s speed=53.2x
+# size=   13568kB time=00:11:32.69 bitrate= 160.5kbits/s speed=53.3x
+
+def ffmpegProgress (line, seconds=0, filter_line=False, verbose=False):
+    global FFMPEG_PROGRESS, FFMPEG_DURATION, FFMPEG_SIZE
+
+    if not filter_line:
+        print(line)
+
+    proc_line = line.replace('=',' ')
+    proc_line = proc_line.replace('kB','')
+    proc_line = proc_line.split()
+
+    i=0
+    size=0
+    time=0
+    for elem in proc_line:
+        if elem == "time":
+            time = i+1;
+        if elem == "size":
+            size = i+1
+        i+=1
+
+    if size!=0:
+        v_size=proc_line[size]
+    else:
+        v_size = '0.0'
+    size_mb = ToFloat(v_size)/1024
+
+    if time!=0:
+        v_time=proc_line[time]
+    else:
+        v_time = '00:00:00.000'
+    vt = v_time.split(':')
+    time_secs = (ToFloat(vt[0])*3600.0) + (ToFloat(vt[1])*60.0) + (ToFloat(vt[2]))
+
+    if verbose:
+        print(time_secs, seconds)
+
+    perc = (time_secs/seconds)*100.0
+    if perc > 100.0:
+        perc = 100.0
+
+    if perc != 0.0:
+        FFMPEG_PROGRESS = perc
+    if v_time != '00:00:00.000':
+        FFMPEG_DURATION = v_time
+    if size_mb != 0.0:
+        FFMPEG_SIZE = size_mb
+
+    if verbose:
+        if size_mb == 0.0:
+            print ('{:6.2f}% time={}'.format(perc, v_time))        
+        else:
+            print ('{:6.2f}% time={} size={:.2f} MB'.format(perc, v_time, size_mb))
+
+    if USER_EXIT_PROGRESS!=None and USER_EXIT_FILE_ID!=None and USER_EXIT_SENDER!=None:
+        USER_EXIT_PROGRESS(USER_EXIT_SENDER, USER_EXIT_FILE_ID, perc)
+
+#-------------------------------------------------------------------------------
+
 def convert_video_file (file, file_out, args):
-    global exit_code, info, video_container, video_resolution, FPS
+    global exit_code, info, video_container, video_resolution, FPS, FFMPEG_PROGRESS, FFMPEG_DURATION, FFMPEG_SIZE
 
     options = []
 
@@ -531,7 +516,11 @@ def convert_video_file (file, file_out, args):
 
     st_v = st_a = st_s = 255
 
+    print ('# Converting to Video file')
+
     show_file_size(file)
+    seconds = show_file_duration(file, args)
+
     st_v = get_video_streams(file, options, args)
     if st_v == 0:
         st_a = get_audio_streams(file, options, args)
@@ -539,6 +528,12 @@ def convert_video_file (file, file_out, args):
         st_s = get_subs_streams(file, options, args)
 
     if st_v == 0 and st_a == 0 and st_s == 0:
+
+        # ffmpeg progress
+        FFMPEG_PROGRESS = 0.0
+        FFMPEG_DURATION = '00:00:00.000'
+        FFMPEG_SIZE = 0.0
+
         # Correct stream data
         # Building FFMPEG command
         options_string = ''
@@ -546,14 +541,16 @@ def convert_video_file (file, file_out, args):
             options_string = options_string + opt + ' '
         options_string = options_string.strip()
 
-        T = ExtendedTimer(10, 0, False, timerShowOutputFileSize, file_out)
+        T = ExtendedTimer(5, 0, False, timerShowOutputFileSize, file_out)
         T.start()
 
         # Final command
         try:
             comm = ffmpeg_comm.format(args.bin, info[args.verbose], file, options_string, file_out)
-            st, out, err = exec_command(comm, get_stdout=False, verbose=args.verbose)
+            st, out, err = c.exec(comm, verbose=args.verbose, user_function=ffmpegProgress, seconds=seconds)
             exit_code = st
+            if exit_code != 0:
+                print('!!! ERROR: Excuting command [{}] (exit code {})'.format(comm, exit_code)) 
         finally:
             T.cancel()
             del T
@@ -572,6 +569,8 @@ def get_file_info (file, args):
     st_v = st_a = st_s = 255
 
     show_file_size(file)
+    show_file_duration(file, args)
+
     st_v = get_video_streams(file, options, args, info=True)
     st_a = get_audio_streams(file, options, args, info=True)
     st_s = get_subs_streams(file, options, args, info=True)
@@ -580,18 +579,33 @@ def get_file_info (file, args):
         # Error obtaining streams data
         exit_code = 255
 
+    comm = ffprobe_info.format(args.bin, file)
+    c.exec(comm, verbose=args.verbose)
+
 #-------------------------------------------------------------------------------
 
 def convert_audio_file (file, file_out, args):
-    global audio_container, info, exit_code
+    global audio_container, info, exit_code, FFMPEG_PROGRESS, FFMPEG_DURATION, FFMPEG_SIZE
 
-    T = ExtendedTimer(10, 0, False, timerShowOutputFileSize, file_out)
+    # ffmpeg progress
+    FFMPEG_PROGRESS = 0.0
+    FFMPEG_DURATION = '00:00:00.000'
+    FFMPEG_SIZE = 0.0
+
+    print ('# Converting to Audio file')
+
+    show_file_size(file)
+    seconds = show_file_duration(file, args)
+
+    T = ExtendedTimer(5, 0, False, timerShowOutputFileSize, file_out)
     T.start()
 
     try:
         audio_command = audio_container[args.container].format(args.bin, info[args.verbose], file, file_out)
-        st, out, err = exec_command(audio_command, get_stdout=False, verbose=args.verbose)
+        st, out, err = c.exec(audio_command, get_stdout=False, verbose=args.verbose, user_function=ffmpegProgress, seconds=seconds)
         exit_code = st
+        if exit_code != 0:
+            print('!!! ERROR: Excuting command [{}] (exit code {})'.format(audio_command, exit_code))
     finally:
         T.cancel()
         del T
@@ -714,14 +728,29 @@ ffmpeg_join = '{}ffmpeg -nostdin -safe 0 -stats -hide_banner -y {} -f concat -i 
 ffprobe_video = '{}ffprobe -v error -print_format csv -show_streams -select_streams v -show_entries stream=index,codec_name,width,height,bit_rate -i "{}"'
 ffprobe_audio = '{}ffprobe -v error -print_format csv -show_streams -select_streams a -show_entries stream=index,codec_name:stream_tags=language -i "{}"'
 ffprobe_subs  = '{}ffprobe -v error -print_format csv -show_streams -select_streams s -show_entries stream=index,codec_name:stream_tags=language -i "{}"'
+ffprobe_dur   = '{}ffprobe -i "{}" -show_entries format=duration -v error -of csv="p=0" -sexagesimal'
+ffprobe_info  = '{}ffprobe -hide_banner -i "{}"'
 
 # Exit status
 exit_code = 0
 
+# ffmpeg progress
+FFMPEG_PROGRESS = 0.0
+FFMPEG_DURATION = '00:00:00.000'
+FFMPEG_SIZE = 0.0
+
+USER_EXIT_SENDER = None
+USER_EXIT_PROGRESS = None
+USER_EXIT_FILE_ID = None
+
 #-------------------------------------------------------------------------------
 
-def run(args):
-    global exit_code
+def run(args, user_exit=None, file_id=None, sender=None):
+    global exit_code, USER_EXIT_PROGRESS, USER_EXIT_FILE_ID, USER_EXIT_SENDER
+
+    USER_EXIT_PROGRESS = user_exit
+    USER_EXIT_FILE_ID = file_id
+    USER_EXIT_SENDER = sender
 
     out_files = {}
     exit_code = 0
@@ -740,12 +769,12 @@ def run(args):
         # Windows support !!
         files_expanded=[]
         for f in args.files:
-            flist = get_files(f)
+            flist = c.get_files(f, verbose=args.verbose)
             files_expanded = files_expanded + flist
 
         for file in files_expanded:
 
-            sep()
+            c.sep()
 
             # Test file existence
             if os.path.isfile(file) and os.access(file, os.R_OK):
@@ -791,7 +820,7 @@ def run(args):
 
                         # Delete only if verification is sucessfull!
                         if args.delete and exit_code == 0:
-                            if delete_file(file):
+                            if c.rm_file(file):
                                 print('>>> Deleted input file [{}]'.format(file))
                             else:
                                 print('!!! ERROR: Deleting file [{}]'.format(file))
@@ -808,7 +837,7 @@ def run(args):
 
                     else:
                         print('!!! ERROR: Processing File [{}] (exit code {})'.format(file, exit_code))
-                        delete_file(file_out)
+                        c.rm_file(file_out)
                         if exit_code == 9999:
                             print('')
                             sys.exit ('*** Stopped ***')
@@ -817,7 +846,7 @@ def run(args):
                 print('!!! ERROR: File [{}] not exists or is not readable'.format(file))
                 exit_code = 255
 
-        sep()
+        c.sep()
 
     else:
         # Info
@@ -830,8 +859,8 @@ def run(args):
 
         if args.delete:
             for file in args.files:
-                if delete_file(file):
-                    print('... Deleted input file [{}]'.format(file))
+                if c.rm_file(file):
+                    print('>>> Deleted input file [{}]'.format(file))
                 else:
                     print('!!! ERROR: Deleting file [{}]'.format(file))
 
@@ -842,7 +871,7 @@ def run(args):
 if __name__ == "__main__":
 
     # Get command line
-    parser = argparse.ArgumentParser(prog='conv_to', description='v2.23: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
+    parser = argparse.ArgumentParser(prog='conv_to', description='v3.3: Wrapper to ffmpeg video manipulation utility. Default: MP4 (input resolution)')
     parser.add_argument('-v', '--verbose', help='show extra log information', action='store_true')
     parser.add_argument('-d', '--delete', help='delete/remove original input file/s', action='store_true')
     parser.add_argument('-e', '--force', help='force re-encoding of input files', action='store_true')
